@@ -20,7 +20,7 @@ use sui::event::emit;
 #[test_only]
 use sui::bcs::to_bytes;
 
-use share::share;
+use share::share::{Self, Spec};
 
 // === Errors ===
 
@@ -77,24 +77,13 @@ public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop
 
 /// Creates the composition and its admin cap from a fresh
 /// `<package>::composition_share::CompositionShare` currency, returning the
-/// full share supply. See `share::mint` for the currency checks.
-public fun new<CompositionShare>(
+/// full share supply. The currency must satisfy `share_spec`.
+public fun new<CompositionShare: key>(
     currency: &mut Currency<CompositionShare>,
     treasury_cap: TreasuryCap<CompositionShare>,
     ctx: &mut TxContext,
 ): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>, Balance<CompositionShare>) {
-    let shares = share::mint(
-        currency,
-        treasury_cap,
-        SHARE_MODULE,
-        SHARE_DATATYPE,
-        SHARE_DECIMALS,
-        SHARE_NAME.to_string(),
-        SHARE_SYMBOL.to_string(),
-        b"".to_string(),
-        b"".to_string(),
-        SHARE_SUPPLY,
-    );
+    let shares = share::mint(currency, treasury_cap, &share_spec());
     let (composition, cap) = new_internal(ctx);
     (composition, cap, shares)
 }
@@ -121,6 +110,22 @@ public fun publish<CompositionShare>(
 /// Read access to the composition's UID (dynamic fields).
 public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
     &self.id
+}
+
+/// The canonical composition share coin: `<package>::composition_share::CompositionShare`,
+/// 6 decimals, "Composition Share", `CSHARE`, empty description and icon,
+/// 100M fixed supply. `share::is_share` checks a currency against it.
+public fun share_spec(): Spec {
+    share::spec(
+        SHARE_MODULE,
+        SHARE_DATATYPE,
+        SHARE_DECIMALS,
+        SHARE_NAME.to_string(),
+        SHARE_SYMBOL.to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        SHARE_SUPPLY,
+    )
 }
 
 // === Admin Functions ===

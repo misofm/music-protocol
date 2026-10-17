@@ -20,7 +20,7 @@ use sui::event::emit;
 #[test_only]
 use sui::bcs::to_bytes;
 
-use share::share;
+use share::share::{Self, Spec};
 
 use musicos::composition::Composition;
 
@@ -82,25 +82,14 @@ public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
 
 /// Creates a recording of `composition` and its admin cap from a fresh
 /// `<package>::recording_share::RecordingShare` currency, returning the full
-/// share supply. See `share::mint` for the currency checks.
-public fun new<RecordingShare, CompositionShare>(
+/// share supply. The currency must satisfy `share_spec`.
+public fun new<RecordingShare: key, CompositionShare>(
     composition: &Composition<CompositionShare>,
     currency: &mut Currency<RecordingShare>,
     treasury_cap: TreasuryCap<RecordingShare>,
     ctx: &mut TxContext,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
-    let shares = share::mint(
-        currency,
-        treasury_cap,
-        SHARE_MODULE,
-        SHARE_DATATYPE,
-        SHARE_DECIMALS,
-        SHARE_NAME.to_string(),
-        SHARE_SYMBOL.to_string(),
-        b"".to_string(),
-        b"".to_string(),
-        SHARE_SUPPLY,
-    );
+    let shares = share::mint(currency, treasury_cap, &share_spec());
     let (recording, cap) = new_internal(object::id(composition), ctx);
     (recording, cap, shares)
 }
@@ -133,6 +122,22 @@ public fun composition_id<RecordingShare>(self: &Recording<RecordingShare>): ID 
 /// Read access to the recording's UID (dynamic fields).
 public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
     &self.id
+}
+
+/// The canonical recording share coin: `<package>::recording_share::RecordingShare`,
+/// 6 decimals, "Recording Share", `RSHARE`, empty description and icon,
+/// 100M fixed supply. `share::is_share` checks a currency against it.
+public fun share_spec(): Spec {
+    share::spec(
+        SHARE_MODULE,
+        SHARE_DATATYPE,
+        SHARE_DECIMALS,
+        SHARE_NAME.to_string(),
+        SHARE_SYMBOL.to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        SHARE_SUPPLY,
+    )
 }
 
 // === Admin Functions ===
