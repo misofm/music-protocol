@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// A musical composition and its canonical share coin `CompositionShare`.
-/// Creation consumes the coin's treasury cap, so each share type backs exactly
-/// one composition, and the 100M fixed supply goes to the creator. Embedded
-/// state freezes at publication; extensions attach through admin-authorized
-/// UID access. Objects are key-only: creation must end with publication in
-/// the same transaction.
+/// Each composition is derived from the `CompositionRegistry` under its share
+/// type, so its address follows from the type alone, and creation consumes
+/// the coin's treasury cap, so each share type backs exactly one composition.
+/// The 100M fixed supply goes to the creator. Embedded state freezes at
+/// publication; extensions attach through admin-authorized UID access.
+/// Objects are key-only: creation must end with publication in the same
+/// transaction.
 module musicos::composition;
 
 // === Imports ===
@@ -14,7 +16,7 @@ module musicos::composition;
 use sui::balance::Balance;
 use sui::coin::TreasuryCap;
 use sui::coin_registry::Currency;
-use sui::derived_object::claim;
+use sui::derived_object::{Self, claim};
 use sui::event::emit;
 
 #[test_only]
@@ -47,6 +49,15 @@ public struct Composition<phantom CompositionShare> has key {
     state: CompositionState,
 }
 
+/// The derivation parent of every composition, created once at package
+/// initialization with no other constructor or mutable UID accessor.
+public struct CompositionRegistry has key {
+    id: UID,
+}
+
+/// Derivation key for the composition of a share type.
+public struct CompositionKey<phantom CompositionShare>() has copy, drop, store;
+
 /// Authorizes admin operations on the one composition of its share type.
 /// Its address is derived from the composition under `CompositionAdminCapKey`.
 public struct CompositionAdminCap<phantom CompositionShare> has key, store {
@@ -75,13 +86,17 @@ public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop
 
 // === Public Functions ===
 
+fun init(ctx: &mut TxContext) {
+    transfer::share_object(CompositionRegistry { id: object::new(ctx) });
+}
+
 /// Creates the composition and its admin cap from a fresh
 /// `<package>::composition_share::CompositionShare` currency, returning the
 /// full share supply. See `share::mint` for the checks.
 public fun new<CompositionShare: key>(
+    registry: &mut CompositionRegistry,
     currency: &mut Currency<CompositionShare>,
     treasury_cap: TreasuryCap<CompositionShare>,
-    ctx: &mut TxContext,
 ): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>, Balance<CompositionShare>) {
     let spec = share::spec(
         SHARE_MODULE,
@@ -94,7 +109,7 @@ public fun new<CompositionShare: key>(
         SHARE_SUPPLY,
     );
     let shares = share::mint(currency, treasury_cap, &spec);
-    let (composition, cap) = new_internal(ctx);
+    let (composition, cap) = new_internal!<CompositionShare>(claim(&mut registry.id, CompositionKey<CompositionShare>()));
     (composition, cap, shares)
 }
 
@@ -117,6 +132,11 @@ public fun publish<CompositionShare>(
 
 // === View Functions ===
 
+/// The address of the composition of `CompositionShare`. Not proof that it exists.
+public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
+    derived_object::derive_address(object::id(registry), CompositionKey<CompositionShare>())
+}
+
 /// Read access to the composition's UID (dynamic fields).
 public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
     &self.id
@@ -137,14 +157,16 @@ public fun uid_mut<CompositionShare>(
 
 // === Private Functions ===
 
-fun new_internal<CompositionShare>(
-    ctx: &mut TxContext,
-): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>) {
-    let mut composition = Composition<CompositionShare> {
-        id: object::new(ctx),
+/// `$id` must be a direct `object::new` or `claim` call: object UIDs can't
+/// be passed through a function.
+macro fun new_internal<$CompositionShare>(
+    $id: UID,
+): (Composition<$CompositionShare>, CompositionAdminCap<$CompositionShare>) {
+    let mut composition = Composition<$CompositionShare> {
+        id: $id,
         state: CompositionState::Initialized,
     };
-    let cap = CompositionAdminCap<CompositionShare> {
+    let cap = CompositionAdminCap<$CompositionShare> {
         id: claim(&mut composition.id, CompositionAdminCapKey()),
     };
     (composition, cap)
@@ -178,7 +200,19 @@ public fun published_state_bcs_bytes(): vector<u8> {
 public fun new_for_testing<CompositionShare>(
     ctx: &mut TxContext,
 ): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>) {
-    new_internal(ctx)
+    new_internal!<CompositionShare>(object::new(ctx))
+}
+
+/// Runs the real module initializer, creating and sharing the registry.
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
+
+/// Creates an unshared registry for tests.
+#[test_only]
+public fun new_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
+    CompositionRegistry { id: object::new(ctx) }
 }
 
 /// Unpacks a `CompositionPublishedEvent` (fields are module-private) for test assertions.

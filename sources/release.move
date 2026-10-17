@@ -118,22 +118,12 @@ public struct ReleasePublishedEvent has copy, drop {
     nonce: u256,
 }
 
-/// Emitted once at package initialization with the canonical registry's id.
-public struct ReleaseRegistryCreatedEvent has copy, drop {
-    registry_id: ID,
-}
-
 // === Public Functions ===
 
 /// Creates and shares the one canonical registry. There is no production
 /// constructor: this object is the permanent namespace every release commits to.
 fun init(ctx: &mut TxContext) {
-    let registry = ReleaseRegistry { id: object::new(ctx) };
-    let registry_id = object::id(&registry);
-
-    transfer::share_object(registry);
-
-    emit(ReleaseRegistryCreatedEvent { registry_id });
+    transfer::share_object(ReleaseRegistry { id: object::new(ctx) });
 }
 
 /// Assembles a release under the canonical registry. Permissionless: consent
@@ -283,13 +273,6 @@ public fun init_for_testing(ctx: &mut TxContext) {
 #[test_only]
 public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
     ReleaseRegistry { id: object::new(ctx) }
-}
-
-/// Unpacks the initialization event for test assertions.
-#[test_only]
-public fun release_registry_created_event_fields(event: ReleaseRegistryCreatedEvent): ID {
-    let ReleaseRegistryCreatedEvent { registry_id } = event;
-    registry_id
 }
 
 /// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test assertions.

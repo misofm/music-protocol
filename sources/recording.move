@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// A recording of a composition and its canonical share coin `RecordingShare`.
-/// Creation consumes the coin's treasury cap, so each share type backs exactly
-/// one recording, and the 100M fixed supply goes to the creator. The parent
-/// composition ID freezes at creation. Extensions attach through
+/// Each recording is derived from the `RecordingRegistry` under its share
+/// type, and creation consumes the coin's treasury cap, so each share type
+/// backs exactly one recording. The 100M fixed supply goes to the creator.
+/// The composition is only read, so recordings of one composition never
+/// contend on it; its ID freezes at creation. Extensions attach through
 /// admin-authorized UID access. Objects are key-only: creation must end with
 /// publication in the same transaction.
 module musicos::recording;
@@ -14,7 +16,7 @@ module musicos::recording;
 use sui::balance::Balance;
 use sui::coin::TreasuryCap;
 use sui::coin_registry::Currency;
-use sui::derived_object::claim;
+use sui::derived_object::{Self, claim};
 use sui::event::emit;
 
 #[test_only]
@@ -51,6 +53,15 @@ public struct Recording<phantom RecordingShare> has key {
     composition_id: ID,
 }
 
+/// The derivation parent of every recording, created once at package
+/// initialization with no other constructor or mutable UID accessor.
+public struct RecordingRegistry has key {
+    id: UID,
+}
+
+/// Derivation key for the recording of a share type.
+public struct RecordingKey<phantom RecordingShare>() has copy, drop, store;
+
 /// Authorizes admin operations on the one recording of its share type.
 /// Its address is derived from the recording under `RecordingAdminCapKey`.
 public struct RecordingAdminCap<phantom RecordingShare> has key, store {
@@ -80,14 +91,18 @@ public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
 
 // === Public Functions ===
 
+fun init(ctx: &mut TxContext) {
+    transfer::share_object(RecordingRegistry { id: object::new(ctx) });
+}
+
 /// Creates a recording of `composition` and its admin cap from a fresh
 /// `<package>::recording_share::RecordingShare` currency, returning the full
 /// share supply. See `share::mint` for the checks.
 public fun new<RecordingShare: key, CompositionShare>(
+    registry: &mut RecordingRegistry,
     composition: &Composition<CompositionShare>,
     currency: &mut Currency<RecordingShare>,
     treasury_cap: TreasuryCap<RecordingShare>,
-    ctx: &mut TxContext,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
     let spec = share::spec(
         SHARE_MODULE,
@@ -100,7 +115,10 @@ public fun new<RecordingShare: key, CompositionShare>(
         SHARE_SUPPLY,
     );
     let shares = share::mint(currency, treasury_cap, &spec);
-    let (recording, cap) = new_internal(object::id(composition), ctx);
+    let (recording, cap) = new_internal!<RecordingShare>(
+        claim(&mut registry.id, RecordingKey<RecordingShare>()),
+        object::id(composition),
+    );
     (recording, cap, shares)
 }
 
@@ -123,6 +141,11 @@ public fun publish<RecordingShare>(
 }
 
 // === View Functions ===
+
+/// The address of the recording of `RecordingShare`. Not proof that it exists.
+public fun derive_address<RecordingShare>(registry: &RecordingRegistry): address {
+    derived_object::derive_address(object::id(registry), RecordingKey<RecordingShare>())
+}
 
 /// The parent composition's object ID, immutable since `new`.
 public fun composition_id<RecordingShare>(self: &Recording<RecordingShare>): ID {
@@ -147,16 +170,18 @@ public fun uid_mut<RecordingShare>(
 
 // === Private Functions ===
 
-fun new_internal<RecordingShare>(
-    composition_id: ID,
-    ctx: &mut TxContext,
-): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>) {
-    let mut recording = Recording<RecordingShare> {
-        id: object::new(ctx),
+/// `$id` must be a direct `object::new` or `claim` call: object UIDs can't
+/// be passed through a function.
+macro fun new_internal<$RecordingShare>(
+    $id: UID,
+    $composition_id: ID,
+): (Recording<$RecordingShare>, RecordingAdminCap<$RecordingShare>) {
+    let mut recording = Recording<$RecordingShare> {
+        id: $id,
         state: RecordingState::Initialized,
-        composition_id,
+        composition_id: $composition_id,
     };
-    let cap = RecordingAdminCap<RecordingShare> {
+    let cap = RecordingAdminCap<$RecordingShare> {
         id: claim(&mut recording.id, RecordingAdminCapKey()),
     };
     (recording, cap)
@@ -188,7 +213,19 @@ public fun new_for_testing<RecordingShare>(
     composition_id: ID,
     ctx: &mut TxContext,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>) {
-    new_internal(composition_id, ctx)
+    new_internal!<RecordingShare>(object::new(ctx), composition_id)
+}
+
+/// Runs the real module initializer, creating and sharing the registry.
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
+
+/// Creates an unshared registry for tests.
+#[test_only]
+public fun new_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
+    RecordingRegistry { id: object::new(ctx) }
 }
 
 /// Unpacks a `RecordingPublishedEvent` (fields are module-private) for test assertions.

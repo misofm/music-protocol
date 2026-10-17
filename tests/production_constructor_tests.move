@@ -13,9 +13,9 @@ use sui::test_scenario;
 use composition_share::composition_share::{Self as composition_template, CompositionShare, CreateTicket as CompositionTicket};
 use recording_share::recording_share::{Self as recording_template, RecordingShare, CreateTicket as RecordingTicket};
 
-use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent};
+use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent, CompositionRegistry};
 use musicos::composition_share as fixture;
-use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent};
+use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent, RecordingRegistry};
 use musicos::wrong_module;
 use share::share;
 
@@ -31,6 +31,8 @@ const ARTIST: address = @0xA2;
 fun templates_create_composition_and_recording() {
     let mut scenario = test_scenario::begin(SYSTEM);
     coin_registry::create_coin_data_registry_for_testing(scenario.ctx()).share_for_testing();
+    composition::init_for_testing(scenario.ctx());
+    recording::init_for_testing(scenario.ctx());
 
     // Tx 1 (SONGWRITER): publish the template, then create the currency.
     scenario.next_tx(SONGWRITER);
@@ -44,8 +46,11 @@ fun templates_create_composition_and_recording() {
     // Tx 2 (SONGWRITER): create and publish the composition.
     scenario.next_tx(SONGWRITER);
     let mut currency = scenario.take_shared<Currency<CompositionShare>>();
-    let (comp, comp_cap, shares) = composition::new(&mut currency, treasury_cap, scenario.ctx());
+    let mut composition_registry = scenario.take_shared<CompositionRegistry>();
+    let (comp, comp_cap, shares) = composition::new(&mut composition_registry, &mut currency, treasury_cap);
     let composition_id = object::id(&comp);
+    assert_eq!(composition_id.to_address(), composition::derive_address<CompositionShare>(&composition_registry));
+    test_scenario::return_shared(composition_registry);
     assert_eq!(shares.value(), composition::share_supply());
     assert!(currency.is_supply_fixed());
     assert_eq!(currency.total_supply(), option::some(composition::share_supply()));
@@ -68,8 +73,11 @@ fun templates_create_composition_and_recording() {
     scenario.next_tx(ARTIST);
     let comp = scenario.take_shared<Composition<CompositionShare>>();
     let mut currency = scenario.take_shared<Currency<RecordingShare>>();
-    let (rec, rec_cap, shares) = recording::new(&comp, &mut currency, treasury_cap, scenario.ctx());
+    let mut recording_registry = scenario.take_shared<RecordingRegistry>();
+    let (rec, rec_cap, shares) = recording::new(&mut recording_registry, &comp, &mut currency, treasury_cap);
     let recording_id = object::id(&rec);
+    assert_eq!(recording_id.to_address(), recording::derive_address<RecordingShare>(&recording_registry));
+    test_scenario::return_shared(recording_registry);
     assert_eq!(rec.composition_id(), composition_id);
     assert_eq!(shares.value(), composition::share_supply());
     rec.publish(&rec_cap);
@@ -105,9 +113,11 @@ fun templates_create_composition_and_recording() {
 
 /// Runs `composition::new` on a fixture currency and cleans up on success.
 fun new_composition<T: key>(mut currency: Currency<T>, treasury_cap: TreasuryCap<T>, registry: CoinRegistry, ctx: &mut TxContext) {
+    let mut composition_registry = composition::new_registry_for_testing(ctx);
     let (comp, cap, shares): (Composition<T>, CompositionAdminCap<T>, Balance<T>) =
-        composition::new(&mut currency, treasury_cap, ctx);
+        composition::new(&mut composition_registry, &mut currency, treasury_cap);
     destroy(comp); destroy(cap); destroy(shares); destroy(currency); destroy(registry);
+    destroy(composition_registry);
 }
 
 #[test]
@@ -141,9 +151,10 @@ fun composition_type_rejected_for_recording() {
     let mut registry = fixture::registry(ctx);
     let (mut currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
     let (comp, comp_cap) = composition::new_for_testing<fixture::CompositionShare>(ctx);
-    let (rec, rec_cap, shares) = recording::new(&comp, &mut currency, treasury_cap, ctx);
+    let mut recording_registry = recording::new_registry_for_testing(ctx);
+    let (rec, rec_cap, shares) = recording::new(&mut recording_registry, &comp, &mut currency, treasury_cap);
     destroy(comp); destroy(comp_cap); destroy(rec); destroy(rec_cap); destroy(shares);
-    destroy(currency); destroy(registry);
+    destroy(currency); destroy(registry); destroy(recording_registry);
 }
 
 #[test, expected_failure(abort_code = share::ETreasuryMismatch)]

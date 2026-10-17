@@ -25,20 +25,14 @@ const READER: address = @0xBEEF;
 
 const NONCE: u256 = 42;
 
-/// The package initializer creates and shares the only production registry,
-/// with an event whose registry id matches the shared object.
+/// The package initializer creates and shares the only production registry.
 #[test]
-fun init_creates_shared_registry_and_emits_event() {
+fun init_creates_shared_registry() {
     let mut scenario = test_scenario::begin(SONGWRITER);
     release::init_for_testing(scenario.ctx());
 
-    let mut events = event::events_by_type<release::ReleaseRegistryCreatedEvent>();
-    assert_eq!(events.length(), 1);
-    let event_registry_id = release::release_registry_created_event_fields(events.pop_back());
-
     scenario.next_tx(READER);
     let registry = scenario.take_shared<ReleaseRegistry>();
-    assert_eq!(object::id(&registry), event_registry_id);
     test_scenario::return_shared(registry);
     scenario.end();
 }

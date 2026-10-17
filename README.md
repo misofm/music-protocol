@@ -49,13 +49,25 @@ values above. A work object is proof that its share coin passed
 these checks. Consuming the treasury cap means each share type
 backs exactly one work.
 
+## Registries
+
+`CompositionRegistry` and `RecordingRegistry` are created and shared once at
+package initialization, like `ReleaseRegistry`, with no other constructor or
+mutable UID access. Each work is derived from its registry under its share type
+(`CompositionKey<T>()`, `RecordingKey<T>()`), so
+`composition::derive_address<T>(&registry)` and
+`recording::derive_address<T>(&registry)` give a work's address from its coin type
+alone. Find the registries by type: there is one of each.
+
 ## Creation and authorization
 
 ```move
-let (composition, composition_cap, composition_shares) =
-    composition::new(&mut composition_currency, composition_treasury_cap, ctx);
-let (recording, recording_cap, recording_shares) =
-    recording::new(&composition, &mut recording_currency, recording_treasury_cap, ctx);
+let (composition, composition_cap, composition_shares) = composition::new(
+    &mut composition_registry, &mut composition_currency, composition_treasury_cap,
+);
+let (recording, recording_cap, recording_shares) = recording::new(
+    &mut recording_registry, &composition, &mut recording_currency, recording_treasury_cap,
+);
 
 composition.publish(&composition_cap);
 recording.publish(&recording_cap);
@@ -65,7 +77,8 @@ recording.publish(&recording_cap);
 
 `CompositionAdminCap<CompositionShare>` and `RecordingAdminCap<RecordingShare>`
 authorize by type: there is exactly one work per share type. Each cap's address is
-derived from its work. `ReleaseAdminCap` stores its release ID and is checked by
+derived from its work. Recording creation only reads the composition, so
+recordings of one composition never contend on it. `ReleaseAdminCap` stores its release ID and is checked by
 `release::authorize`.
 
 The admin capability represents protocol administration, not fractional economic ownership.
@@ -122,7 +135,6 @@ extension access remains available afterward.
 |---|---|
 | `CompositionPublishedEvent<CompositionShare>` | Composition ID |
 | `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
-| `ReleaseRegistryCreatedEvent` | Registry ID |
 | `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID, split BPS |
 | `ReleasePublishedEvent` | Release ID and creator nonce |
 
@@ -135,8 +147,8 @@ constructors return values, publication is separate, capabilities are object-bou
 consents are consumed by value, and tests live outside production sources.
 
 Track and TrackConsent share a module to keep consent construction and unwrapping
-encapsulated. The release registry is shared only by package initialization to
-preserve its single namespace. Commit publication metadata when this source is deployed.
+encapsulated. The registries are shared only by package initialization to
+preserve their single namespaces. Commit publication metadata when this source is deployed.
 
 ## Dependencies
 
