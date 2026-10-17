@@ -45,8 +45,8 @@ the package address differs between works.
 It also requires the matching treasury cap, zero prior supply, an unregulated
 currency and locked metadata. The checks are `share::mint` from
 [unconfirmedlabs/share](https://github.com/unconfirmedlabs/share), called with the
-values above. `composition::share_spec()` and `recording::share_spec()` return
-those specs, so other packages can verify a work's coin with `share::is_share`. Consuming the treasury cap means each share type
+values above. A work object is proof that its share coin passed
+these checks. Consuming the treasury cap means each share type
 backs exactly one work.
 
 ## Creation and authorization

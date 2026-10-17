@@ -49,7 +49,6 @@ fun templates_create_composition_and_recording() {
     assert_eq!(shares.value(), composition::share_supply());
     assert!(currency.is_supply_fixed());
     assert_eq!(currency.total_supply(), option::some(composition::share_supply()));
-    assert!(share::is_share(&currency, &composition::share_spec()));
     comp.publish(&comp_cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(composition::composition_published_event_fields(events.pop_back()), composition_id);
@@ -73,7 +72,6 @@ fun templates_create_composition_and_recording() {
     let recording_id = object::id(&rec);
     assert_eq!(rec.composition_id(), composition_id);
     assert_eq!(shares.value(), composition::share_supply());
-    assert!(share::is_share(&currency, &recording::share_spec()));
     rec.publish(&rec_cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     let (event_recording, event_composition) =
