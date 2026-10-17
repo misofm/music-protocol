@@ -9,14 +9,14 @@
 #[test_only]
 module musicos::release_e2e_tests;
 
+use std::unit_test::{assert_eq, destroy};
+use sui::event;
+use sui::test_scenario;
 use musicos::composition::{Self, Composition};
 use musicos::recording::{Self, Recording};
 use musicos::release::{Self, Release, ReleaseRegistry};
 use musicos::test_helpers::{CompositionShare, RecordingShare};
 use musicos::track;
-use std::unit_test::{assert_eq, destroy};
-use sui::event;
-use sui::test_scenario;
 
 const SONGWRITER: address = @0xA1;
 const ARTIST: address = @0xA2;

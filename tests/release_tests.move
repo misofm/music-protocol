@@ -4,15 +4,14 @@
 #[test_only]
 module musicos::release_tests;
 
+use std::unit_test::{assert_eq, destroy};
+use sui::derived_object;
 use bps::bps;
 use musicos::composition;
 use musicos::recording;
 use musicos::release;
 use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
 use musicos::track;
-use std::unit_test::{assert_eq, destroy};
-use sui::derived_object;
-
 
 /// Helper to create an ordered tracklist of n tracks sharing splits evenly.
 fun test_tracks(track_count: u64, split_bps: u16, ctx: &mut TxContext): vector<track::TrackConsent> {

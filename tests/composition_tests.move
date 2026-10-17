@@ -1,10 +1,10 @@
 #[test_only]
 module musicos::composition_tests;
 
-use musicos::composition::{Self, Composition};
-use musicos::test_helpers::CompositionShare;
 use std::unit_test::destroy;
 use sui::test_scenario;
+use musicos::composition::{Self, Composition};
+use musicos::test_helpers::CompositionShare;
 
 const OWNER: address = @0xA1;
 

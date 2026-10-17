@@ -4,11 +4,11 @@
 #[test_only]
 module musicos::kitchen_sink_tests;
 
+use std::unit_test::{assert_eq, destroy};
+use sui::event;
 use musicos::release;
 use musicos::test_helpers;
 use musicos::track;
-use std::unit_test::{assert_eq, destroy};
-use sui::event;
 
 /// Publishing a 255-track release emits one `ReleaseTrackAssignedEvent` per
 /// position, in order, including duplicate recording IDs and zero-valued

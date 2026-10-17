@@ -18,11 +18,10 @@ use sui::coin::TreasuryCap;
 use sui::coin_registry::Currency;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
+use share::share;
 
 #[test_only]
 use sui::bcs::to_bytes;
-
-use share::share;
 
 // === Errors ===
 

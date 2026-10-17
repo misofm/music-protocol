@@ -1,10 +1,10 @@
 #[test_only]
 module musicos::recording_tests;
 
-use musicos::recording::{Self, Recording};
-use musicos::test_helpers::{Self, RecordingShare};
 use std::unit_test::destroy;
 use sui::test_scenario;
+use musicos::recording::{Self, Recording};
+use musicos::test_helpers::{Self, RecordingShare};
 
 const OWNER: address = @0xA1;
 

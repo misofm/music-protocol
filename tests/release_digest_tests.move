@@ -6,11 +6,11 @@
 #[test_only]
 module musicos::release_digest_tests;
 
-use musicos::release;
-use musicos::test_helpers;
 use std::unit_test::{assert_eq, destroy};
 use sui::bcs::to_bytes;
 use sui::hash::blake2b256;
+use musicos::release;
+use musicos::test_helpers;
 
 /// Mirrors `release::calculate_release_digest` for SDK parity checks.
 fun calculate_release_digest(

@@ -9,15 +9,13 @@ use sui::coin::TreasuryCap;
 use sui::coin_registry::{Self, CoinRegistry, Currency};
 use sui::event;
 use sui::test_scenario;
-
+use share::share;
 use composition_share::composition_share::{Self as composition_template, CompositionShare, CreateTicket as CompositionTicket};
 use recording_share::recording_share::{Self as recording_template, RecordingShare, CreateTicket as RecordingTicket};
-
 use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent, CompositionRegistry};
 use musicos::composition_share as fixture;
 use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent, RecordingRegistry};
 use musicos::wrong_module;
-use share::share;
 
 const SYSTEM: address = @0x0;
 const SONGWRITER: address = @0xA1;

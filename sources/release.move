@@ -26,9 +26,7 @@ use sui::bcs::to_bytes;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use sui::hash::blake2b256;
-
 use bps::bps;
-
 use musicos::track::{Track, TrackConsent};
 
 // === Errors ===
