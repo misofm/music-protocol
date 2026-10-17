@@ -2,6 +2,7 @@
 module musicos::composition_tests;
 
 use musicos::composition::{Self, Composition};
+use musicos::test_helpers::CompositionShare;
 use std::unit_test::destroy;
 use sui::test_scenario;
 
@@ -12,7 +13,7 @@ const OWNER: address = @0xA1;
 #[test]
 fun test_new_composition() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
+    let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
     assert!(comp.is_initialized_state());
     assert!(!comp.is_published_state());
     destroy(comp);
@@ -25,11 +26,11 @@ fun test_new_composition() {
 fun test_publish_composition() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
-    let (comp, cap) = composition::new(ctx);
+    let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
     comp.publish(&cap); // shares the composition
 
     scenario.next_tx(OWNER);
-    let comp = scenario.take_shared<Composition>();
+    let comp = scenario.take_shared<Composition<CompositionShare>>();
     assert!(comp.is_published_state());
     test_scenario::return_shared(comp);
 

@@ -43,16 +43,15 @@ public use fun track_consent_track as TrackConsent.track;
 
 // === Public Functions ===
 
-/// Consents to inclusion in a release at the given split.
-/// The capability must belong to the recording. Consent may be discarded or
-/// stored by an extension; release creation consumes it without retaining its ID.
-public fun consent(
-    recording: &Recording,
-    cap: &RecordingAdminCap,
+/// Consents to inclusion in a release at the given split, authorized by the
+/// recording's admin cap. Consent may be discarded or stored by an extension;
+/// release creation consumes it without retaining its ID.
+public fun consent<RecordingShare>(
+    recording: &Recording<RecordingShare>,
+    _: &RecordingAdminCap<RecordingShare>,
     release_id: ID,
     split_bps: u16,
 ): TrackConsent {
-    recording.authorize(cap);
     TrackConsent {
         release_id,
         track: Track {

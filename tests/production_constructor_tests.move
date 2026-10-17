@@ -1,112 +1,241 @@
+/// Production constructors: the full publish flow through the share-coin
+/// templates, and every `share_currency` check.
 #[test_only]
 module musicos::production_constructor_tests;
 
 use std::unit_test::{assert_eq, destroy};
+use sui::balance::Balance;
+use sui::coin::TreasuryCap;
+use sui::coin_registry::{Self, CoinRegistry, Currency};
 use sui::event;
 use sui::test_scenario;
-use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent};
-use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent};
-use musicos::track;
 
+use composition_share::composition_share::{Self as composition_template, CompositionShare, CreateTicket as CompositionTicket};
+use recording_share::recording_share::{Self as recording_template, RecordingShare, CreateTicket as RecordingTicket};
+
+use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent};
+use musicos::composition_share as fixture;
+use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent};
+use musicos::share_currency;
+use musicos::wrong_module;
+
+const SYSTEM: address = @0x0;
+const SONGWRITER: address = @0xA1;
+const ARTIST: address = @0xA2;
+
+// === Template flow ===
+
+/// Publish (init ticket), `create`, then `new` + `publish` in a later
+/// transaction, for a composition and a recording of it.
 #[test]
-fun identities_publish_without_currencies() {
-    let mut scenario = test_scenario::begin(@0xA);
-    let (comp, comp_cap) = composition::new(scenario.ctx());
+fun templates_create_composition_and_recording() {
+    let mut scenario = test_scenario::begin(SYSTEM);
+    coin_registry::create_coin_data_registry_for_testing(scenario.ctx()).share_for_testing();
+
+    // Tx 1 (SONGWRITER): publish the template, then create the currency.
+    scenario.next_tx(SONGWRITER);
+    composition_template::init_for_testing(scenario.ctx());
+    scenario.next_tx(SONGWRITER);
+    let ticket = scenario.take_from_sender<CompositionTicket>();
+    let mut registry = scenario.take_shared<CoinRegistry>();
+    let treasury_cap = ticket.create(&mut registry, scenario.ctx());
+    test_scenario::return_shared(registry);
+
+    // Tx 2 (SONGWRITER): create and publish the composition.
+    scenario.next_tx(SONGWRITER);
+    let mut currency = scenario.take_shared<Currency<CompositionShare>>();
+    let (comp, comp_cap, shares) = composition::new(&mut currency, treasury_cap, scenario.ctx());
     let composition_id = object::id(&comp);
-    let (rec, rec_cap) = recording::new(&comp, scenario.ctx());
+    assert_eq!(shares.value(), share_currency::supply());
+    assert!(currency.is_supply_fixed());
+    assert_eq!(currency.total_supply(), option::some(share_currency::supply()));
+    comp.publish(&comp_cap);
+    let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
+    assert_eq!(composition::composition_published_event_fields(events.pop_back()), composition_id);
+    test_scenario::return_shared(currency);
+    transfer::public_transfer(comp_cap, SONGWRITER);
+    destroy(shares);
+
+    // Tx 3-4 (ARTIST): recording template, then the recording.
+    scenario.next_tx(ARTIST);
+    recording_template::init_for_testing(scenario.ctx());
+    scenario.next_tx(ARTIST);
+    let ticket = scenario.take_from_sender<RecordingTicket>();
+    let mut registry = scenario.take_shared<CoinRegistry>();
+    let treasury_cap = ticket.create(&mut registry, scenario.ctx());
+    test_scenario::return_shared(registry);
+
+    scenario.next_tx(ARTIST);
+    let comp = scenario.take_shared<Composition<CompositionShare>>();
+    let mut currency = scenario.take_shared<Currency<RecordingShare>>();
+    let (rec, rec_cap, shares) = recording::new(&comp, &mut currency, treasury_cap, scenario.ctx());
     let recording_id = object::id(&rec);
     assert_eq!(rec.composition_id(), composition_id);
-    comp.publish(&comp_cap);
+    assert_eq!(shares.value(), share_currency::supply());
+    assert!(currency.is_supply_fixed());
     rec.publish(&rec_cap);
-    let mut compositions = event::events_by_type<CompositionPublishedEvent>();
-    assert_eq!(compositions.length(), 1);
-    assert_eq!(composition::composition_published_event_fields(compositions.pop_back()), composition_id);
-    let mut recordings = event::events_by_type<RecordingPublishedEvent>();
-    assert_eq!(recordings.length(), 1);
-    let (event_rec, event_comp) = recording::recording_published_event_fields(recordings.pop_back());
-    assert_eq!(event_rec, recording_id);
-    assert_eq!(event_comp, composition_id);
-    transfer::public_transfer(comp_cap, @0xA);
-    transfer::public_transfer(rec_cap, @0xA);
-
-    scenario.next_tx(@0xA);
-    let mut comp = scenario.take_shared<Composition>();
-    let mut rec = scenario.take_shared<Recording>();
-    let comp_cap = scenario.take_from_sender<CompositionAdminCap>();
-    let rec_cap = scenario.take_from_sender<RecordingAdminCap>();
-    assert_eq!(comp.uid_mut(&comp_cap).to_inner(), composition_id);
-    assert_eq!(rec.uid_mut(&rec_cap).to_inner(), recording_id);
-    assert!(comp.is_published_state());
-    assert!(rec.is_published_state());
+    let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
+    let (event_recording, event_composition) =
+        recording::recording_published_event_fields(events.pop_back());
+    assert_eq!(event_recording, recording_id);
+    assert_eq!(event_composition, composition_id);
     test_scenario::return_shared(comp);
+    test_scenario::return_shared(currency);
+    transfer::public_transfer(rec_cap, ARTIST);
+    destroy(shares);
+
+    // Later: the caps still open their works' UIDs.
+    scenario.next_tx(ARTIST);
+    let mut rec = scenario.take_shared<Recording<RecordingShare>>();
+    let rec_cap = scenario.take_from_sender<RecordingAdminCap<RecordingShare>>();
+    assert_eq!(rec.uid_mut(&rec_cap).to_inner(), recording_id);
+    assert!(rec.is_published_state());
     test_scenario::return_shared(rec);
-    scenario.return_to_sender(comp_cap);
     scenario.return_to_sender(rec_cap);
+
+    scenario.next_tx(SONGWRITER);
+    let mut comp = scenario.take_shared<Composition<CompositionShare>>();
+    let comp_cap = scenario.take_from_sender<CompositionAdminCap<CompositionShare>>();
+    assert_eq!(comp.uid_mut(&comp_cap).to_inner(), composition_id);
+    test_scenario::return_shared(comp);
+    scenario.return_to_sender(comp_cap);
     scenario.end();
 }
 
+// === share_currency checks ===
+
+/// Runs `composition::new` on a fixture currency and cleans up on success.
+fun new_composition<T>(mut currency: Currency<T>, treasury_cap: TreasuryCap<T>, registry: CoinRegistry, ctx: &mut TxContext) {
+    let (comp, cap, shares): (Composition<T>, CompositionAdminCap<T>, Balance<T>) =
+        composition::new(&mut currency, treasury_cap, ctx);
+    destroy(comp); destroy(cap); destroy(shares); destroy(currency); destroy(registry);
+}
+
 #[test]
-fun multiple_subjects_and_recordings_have_independent_authority() {
+fun canonical_currency_is_accepted() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
-    let (other, other_cap) = composition::new(ctx);
-    assert!(object::id(&comp) != object::id(&other));
-    comp.authorize(&cap);
-    other.authorize(&other_cap);
-    let (first, first_cap) = recording::new(&comp, ctx);
-    let (second, second_cap) = recording::new(&comp, ctx);
-    assert!(object::id(&first) != object::id(&second));
-    assert_eq!(first.composition_id(), second.composition_id());
-    first.authorize(&first_cap);
-    second.authorize(&second_cap);
-    destroy(comp); destroy(cap); destroy(other); destroy(other_cap);
-    destroy(first); destroy(first_cap); destroy(second); destroy(second_cap);
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
+    new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = composition::EUnauthorized)]
-fun foreign_composition_cap_cannot_publish() {
+#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+fun wrong_datatype_name_rejected() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
-    let (other, other_cap) = composition::new(ctx);
-    comp.publish(&other_cap);
-    destroy(cap); destroy(other); destroy(other_cap);
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::wrong_name(&mut registry, ctx);
+    new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = composition::EUnauthorized)]
-fun foreign_composition_cap_cannot_access_uid() {
+#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+fun wrong_module_name_rejected() {
     let ctx = &mut tx_context::dummy();
-    let (mut comp, cap) = composition::new(ctx);
-    let (other, other_cap) = composition::new(ctx);
-    comp.uid_mut(&other_cap);
-    destroy(comp); destroy(cap); destroy(other); destroy(other_cap);
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = wrong_module::canonical(&mut registry, ctx);
+    new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = recording::EUnauthorized)]
-fun foreign_recording_cap_cannot_publish() {
+/// A composition share currency can't back a recording.
+#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+fun composition_type_rejected_for_recording() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
-    let (first, first_cap) = recording::new(&comp, ctx);
-    let (second, second_cap) = recording::new(&comp, ctx);
-    first.publish(&second_cap);
-    destroy(comp); destroy(cap); destroy(first_cap); destroy(second); destroy(second_cap);
+    let mut registry = fixture::registry(ctx);
+    let (mut currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
+    let (comp, comp_cap) = composition::new_for_testing<fixture::CompositionShare>(ctx);
+    let (rec, rec_cap, shares) = recording::new(&comp, &mut currency, treasury_cap, ctx);
+    destroy(comp); destroy(comp_cap); destroy(rec); destroy(rec_cap); destroy(shares);
+    destroy(currency); destroy(registry);
 }
 
-#[test, expected_failure(abort_code = recording::EUnauthorized)]
-fun foreign_recording_cap_cannot_access_uid() {
+#[test, expected_failure(abort_code = share_currency::ETreasuryMismatch)]
+fun foreign_treasury_cap_rejected() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
-    let (mut first, first_cap) = recording::new(&comp, ctx);
-    let (second, second_cap) = recording::new(&comp, ctx);
-    first.uid_mut(&second_cap);
-    destroy(comp); destroy(cap); destroy(first); destroy(first_cap); destroy(second); destroy(second_cap);
+    let mut registry = fixture::registry(ctx);
+    let mut other_registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
+    let (other_currency, other_treasury_cap) = fixture::canonical(&mut other_registry, ctx);
+    destroy(other_currency); destroy(other_registry); destroy(treasury_cap);
+    new_composition(currency, other_treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = recording::EUnauthorized)]
-fun foreign_recording_cap_cannot_consent_to_track() {
+#[test, expected_failure(abort_code = share_currency::ENotZeroSupply)]
+fun minted_currency_rejected() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new(ctx);
-    let (first, first_cap) = recording::new(&comp, ctx);
-    let (second, second_cap) = recording::new(&comp, ctx);
-    track::consent(&first, &second_cap, object::id(&comp), 10000);
-    destroy(comp); destroy(cap); destroy(first); destroy(first_cap); destroy(second); destroy(second_cap);
+    let mut registry = fixture::registry(ctx);
+    let (currency, mut treasury_cap) = fixture::canonical(&mut registry, ctx);
+    destroy(treasury_cap.mint_balance(1));
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::ERegulatedCurrency)]
+fun regulated_currency_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap, deny_cap) = fixture::regulated(&mut registry, ctx);
+    destroy(deny_cap);
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EMetadataNotLocked)]
+fun unlocked_metadata_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap, metadata_cap) = fixture::unlocked(&mut registry, ctx);
+    destroy(metadata_cap);
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EInvalidDecimals)]
+fun wrong_decimals_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::custom(
+        &mut registry, 9, b"CSHARE".to_string(), b"Composition Share".to_string(),
+        b"".to_string(), b"".to_string(), ctx,
+    );
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EInvalidName)]
+fun wrong_name_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::custom(
+        &mut registry, 6, b"CSHARE".to_string(), b"MusicOS Composition Share".to_string(),
+        b"".to_string(), b"".to_string(), ctx,
+    );
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EInvalidSymbol)]
+fun wrong_symbol_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::custom(
+        &mut registry, 6, b"RSHARE".to_string(), b"Composition Share".to_string(),
+        b"".to_string(), b"".to_string(), ctx,
+    );
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EInvalidDescription)]
+fun nonempty_description_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::custom(
+        &mut registry, 6, b"CSHARE".to_string(), b"Composition Share".to_string(),
+        b"A song".to_string(), b"".to_string(), ctx,
+    );
+    new_composition(currency, treasury_cap, registry, ctx);
+}
+
+#[test, expected_failure(abort_code = share_currency::EInvalidIconUrl)]
+fun nonempty_icon_rejected() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = fixture::registry(ctx);
+    let (currency, treasury_cap) = fixture::custom(
+        &mut registry, 6, b"CSHARE".to_string(), b"Composition Share".to_string(),
+        b"".to_string(), b"https://example.com/icon.png".to_string(), ctx,
+    );
+    new_composition(currency, treasury_cap, registry, ctx);
 }

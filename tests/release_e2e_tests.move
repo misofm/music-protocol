@@ -12,7 +12,7 @@ module musicos::release_e2e_tests;
 use musicos::composition::{Self, Composition};
 use musicos::recording::{Self, Recording};
 use musicos::release::{Self, Release, ReleaseRegistry};
-use musicos::test_helpers;
+use musicos::test_helpers::{CompositionShare, RecordingShare};
 use musicos::track;
 use std::unit_test::{assert_eq, destroy};
 use sui::event;
@@ -50,29 +50,28 @@ fun full_track_release_flow_publishes_at_derived_id() {
 
     // === Tx 1 (SONGWRITER): create and publish the composition ===
     scenario.next_tx(SONGWRITER);
-    let (comp, comp_cap) = composition::new(scenario.ctx(),
-    );
+    let (comp, comp_cap) = composition::new_for_testing<CompositionShare>(scenario.ctx());
     comp.publish(&comp_cap); // shares the composition
     destroy(comp_cap);
 
     // === Tx 2 (ARTIST): create and publish a recording of it ===
     scenario.next_tx(ARTIST);
-    let comp = scenario.take_shared<Composition>();
-    let (rec, rec_cap) = recording::new_for_testing(
+    let comp = scenario.take_shared<Composition<CompositionShare>>();
+    let (rec, rec_cap) = recording::new_for_testing<RecordingShare>(
         object::id(&comp),
         scenario.ctx(),
     );
     rec.publish(&rec_cap); // shares the recording
     let mut recording_events =
-        event::events_by_type<recording::RecordingPublishedEvent>();
+        event::events_by_type<recording::RecordingPublishedEvent<RecordingShare>>();
     let (rec_event_recording_id, rec_event_composition_id) =
         recording::recording_published_event_fields(recording_events.pop_back());
     test_scenario::return_shared(comp);
 
     // === Tx 3 (ARTIST): consent to the predicted release id via track::consent ===
     scenario.next_tx(ARTIST);
-    let comp = scenario.take_shared<Composition>();
-    let rec = scenario.take_shared<Recording>();
+    let comp = scenario.take_shared<Composition<CompositionShare>>();
+    let rec = scenario.take_shared<Recording<RecordingShare>>();
     let registry = scenario.take_shared<ReleaseRegistry>();
     let recording_id = object::id(&rec);
     let composition_id = object::id(&comp);
@@ -154,9 +153,8 @@ fun new_aborts_when_consent_targets_a_different_release() {
 
     // One actor for brevity — the binding doesn't depend on senders.
     scenario.next_tx(SONGWRITER);
-    let (_comp, _comp_cap) = composition::new(scenario.ctx(),
-    );
-    let (rec, rec_cap) = recording::new_for_testing(
+    let (_comp, _comp_cap) = composition::new_for_testing<CompositionShare>(scenario.ctx());
+    let (rec, rec_cap) = recording::new_for_testing<RecordingShare>(
         object::id(&_comp),
         scenario.ctx(),
     );

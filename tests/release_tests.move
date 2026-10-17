@@ -8,7 +8,7 @@ use bps::bps;
 use musicos::composition;
 use musicos::recording;
 use musicos::release;
-use musicos::test_helpers;
+use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
 use musicos::track;
 use std::unit_test::{assert_eq, destroy};
 use sui::derived_object;
@@ -27,13 +27,13 @@ fun test_tracks(track_count: u64, split_bps: u16, ctx: &mut TxContext): vector<t
 fun composition_and_recording(
     ctx: &mut TxContext,
 ): (
-    composition::Composition,
-    composition::CompositionAdminCap,
-    recording::Recording,
-    recording::RecordingAdminCap,
+    composition::Composition<CompositionShare>,
+    composition::CompositionAdminCap<CompositionShare>,
+    recording::Recording<RecordingShare>,
+    recording::RecordingAdminCap<RecordingShare>,
 ) {
     let (comp, comp_cap) =
-        composition::new(ctx);
+        composition::new_for_testing(ctx);
     let (rec, rec_cap) =
         recording::new_for_testing(object::id(&comp), ctx);
     (comp, comp_cap, rec, rec_cap)

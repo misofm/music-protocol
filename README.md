@@ -4,37 +4,66 @@
 
 A permissionless music identity and release-consent protocol on Sui, written in Move.
 
-Core defines compositions, recordings, releases, and tracks. Creating an identity requires no currency, treasury, share issuance, or tokenization. Ownership classes, composition commission rates, allocations, and royalty accounting belong in extensions.
+Core defines compositions, recordings, releases, and tracks. Every composition and recording has one canonical share coin: a fixed supply of 100M shares covering all of the work's rights. Composition commission rates, allocations, and royalty accounting belong in extensions.
 
 ## Data model
 
 | Type | Core data |
 |---|---|
-| `Composition` | Identity and lifecycle |
-| `Recording` | Identity, lifecycle, and immutable composition ID |
+| `Composition<CompositionShare>` | Identity and lifecycle; its share coin is the type parameter |
+| `Recording<RecordingShare>` | Identity, lifecycle, and immutable composition ID |
 | `Release` | Identity, lifecycle, and ordered tracks |
 | `Track` | Recording ID and release revenue split |
 | `TrackConsent` | Authorized release ID and nested track; consumed during release creation |
 
-Composition and recording types and their events have no ownership type parameters.
 Anyone can create a recording referencing an existing composition. The reference establishes a relationship; it does not establish a license or impose a commission.
+
+## Share coins
+
+Each work's share coin comes from its own copy of a template package in
+[`templates/`](templates): `composition_share::CompositionShare` or
+`recording_share::RecordingShare`. Publish the template's bytecode unchanged; only
+the package address differs between works.
+
+1. Publish the template. `init` sends the publisher a one-time `CreateTicket`.
+2. `create(ticket, &mut CoinRegistry)` registers the currency, deletes its
+   metadata cap and returns the `TreasuryCap`.
+3. In a later transaction, `composition::new` (or `recording::new`) consumes the
+   treasury cap, mints the full supply to the caller and fixes it.
+
+`new` aborts unless the currency matches exactly:
+
+| Property | Composition | Recording |
+|---|---|---|
+| Type | `<package>::composition_share::CompositionShare` | `<package>::recording_share::RecordingShare` |
+| Name | Composition Share | Recording Share |
+| Symbol | `CSHARE` | `RSHARE` |
+| Decimals | 6 | 6 |
+| Description, icon URL | empty | empty |
+| Supply | 100,000,000, fixed | 100,000,000, fixed |
+
+It also requires the matching treasury cap, zero prior supply, an unregulated
+currency and locked metadata. Consuming the treasury cap means each share type
+backs exactly one work.
 
 ## Creation and authorization
 
 ```move
-let (composition, composition_cap) = composition::new(ctx);
-let (recording, recording_cap) = recording::new(&composition, ctx);
+let (composition, composition_cap, composition_shares) =
+    composition::new(&mut composition_currency, composition_treasury_cap, ctx);
+let (recording, recording_cap, recording_shares) =
+    recording::new(&composition, &mut recording_currency, recording_treasury_cap, ctx);
 
 composition.publish(&composition_cap);
 recording.publish(&recording_cap);
 
-// The caller retains or transfers the returned admin capabilities.
+// The caller keeps or transfers the returned admin capabilities and shares.
 ```
 
-Composition, recording, and release admin capabilities authorize one specific object.
-Each module's `authorize` checks the capability's stored subject ID against the object.
-Publication and mutable UID access enforce that check. Track consent also checks that the
-recording capability belongs to the supplied recording.
+`CompositionAdminCap<CompositionShare>` and `RecordingAdminCap<RecordingShare>`
+authorize by type: there is exactly one work per share type. Each cap's address is
+derived from its work. `ReleaseAdminCap` stores its release ID and is checked by
+`release::authorize`.
 
 The admin capability represents protocol administration, not fractional economic ownership.
 Capabilities are transferable bearer objects: transferring one hands over administration.
@@ -45,11 +74,9 @@ Core has no recovery authority or forced revocation mechanism.
 Extensions attach through `uid_mut(&admin_cap)`. The matching capability is required
 both before and after publication. Read-only UID access supports extension queries.
 
-Metadata, credits, artwork, audio, ownership classes, and economic agreements can live
-outside core. A future ownership extension can obtain the authorized subject UID,
-initialize shares, and allocate the composition's commission when establishing recording
-ownership. MusicOS itself does not depend on a share implementation or enforce that setup.
-Applications requiring economic terms must validate their recognized extension.
+Metadata, credits, artwork, audio, and economic agreements such as a composition's
+commission on its recordings live outside core. Applications requiring economic terms
+must validate their recognized extension.
 
 Extension modules control their own typed keys and APIs. Mutable UID access is a privileged
 surface; extension immutability and authorization must be designed explicitly.
@@ -90,8 +117,8 @@ extension access remains available afterward.
 
 | Event | Data |
 |---|---|
-| `CompositionPublishedEvent` | Composition ID |
-| `RecordingPublishedEvent` | Recording ID and composition ID |
+| `CompositionPublishedEvent<CompositionShare>` | Composition ID |
+| `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
 | `ReleaseRegistryCreatedEvent` | Registry ID |
 | `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID, split BPS |
 | `ReleasePublishedEvent` | Release ID and creator nonce |
@@ -111,7 +138,8 @@ preserve its single namespace. Commit publication metadata when this source is d
 ## Dependencies
 
 The only explicit dependency is [bps](https://github.com/unconfirmedlabs/bps),
-used for release track splits. Sui framework dependencies are pinned in `Move.lock`.
+used for release track splits. Share coins use Sui's `coin_registry`. The templates
+are test-only dependencies. Sui framework dependencies are pinned in `Move.lock`.
 
 ## Build and test
 
@@ -120,7 +148,7 @@ sui move build
 sui move test
 ```
 
-Tests cover production identity creation, object-specific authorization, extension access
+Tests cover the template-to-publish flow, every share currency check, extension access
 after publication, lifecycle events, release derivation, consent, and split validation.
 
 ## License
