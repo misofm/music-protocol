@@ -20,7 +20,7 @@ use sui::event::emit;
 #[test_only]
 use sui::bcs::to_bytes;
 
-use musicos::share_currency;
+use share::share;
 
 // === Errors ===
 
@@ -32,8 +32,11 @@ const ENotInitializedState: u64 = 10;
 
 const SHARE_MODULE: vector<u8> = b"composition_share";
 const SHARE_DATATYPE: vector<u8> = b"CompositionShare";
+const SHARE_DECIMALS: u8 = 6;
 const SHARE_NAME: vector<u8> = b"Composition Share";
 const SHARE_SYMBOL: vector<u8> = b"CSHARE";
+/// 100 million shares in base units.
+const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
 
@@ -74,19 +77,23 @@ public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop
 
 /// Creates the composition and its admin cap from a fresh
 /// `<package>::composition_share::CompositionShare` currency, returning the
-/// full share supply. See `share_currency::mint` for the currency checks.
+/// full share supply. See `share::mint` for the currency checks.
 public fun new<CompositionShare>(
     currency: &mut Currency<CompositionShare>,
     treasury_cap: TreasuryCap<CompositionShare>,
     ctx: &mut TxContext,
 ): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>, Balance<CompositionShare>) {
-    let shares = share_currency::mint(
+    let shares = share::mint(
         currency,
         treasury_cap,
         SHARE_MODULE,
         SHARE_DATATYPE,
+        SHARE_DECIMALS,
         SHARE_NAME.to_string(),
         SHARE_SYMBOL.to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        SHARE_SUPPLY,
     );
     let (composition, cap) = new_internal(ctx);
     (composition, cap, shares)
@@ -158,6 +165,9 @@ public fun is_initialized_state<CompositionShare>(self: &Composition<Composition
 public fun is_published_state<CompositionShare>(self: &Composition<CompositionShare>): bool {
     match (&self.state) { CompositionState::Published => true, _ => false }
 }
+
+#[test_only]
+public fun share_supply(): u64 { SHARE_SUPPLY }
 
 #[test_only]
 public fun published_state_bcs_bytes(): vector<u8> {

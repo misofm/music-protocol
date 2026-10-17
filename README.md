@@ -43,7 +43,9 @@ the package address differs between works.
 | Supply | 100,000,000, fixed | 100,000,000, fixed |
 
 It also requires the matching treasury cap, zero prior supply, an unregulated
-currency and locked metadata. Consuming the treasury cap means each share type
+currency and locked metadata. The checks are `share::mint` from
+[unconfirmedlabs/share](https://github.com/unconfirmedlabs/share), called with the
+values above. Consuming the treasury cap means each share type
 backs exactly one work.
 
 ## Creation and authorization
@@ -137,9 +139,12 @@ preserve its single namespace. Commit publication metadata when this source is d
 
 ## Dependencies
 
-The only explicit dependency is [bps](https://github.com/unconfirmedlabs/bps),
-used for release track splits. Share coins use Sui's `coin_registry`. The templates
-are test-only dependencies. Sui framework dependencies are pinned in `Move.lock`.
+- [bps](https://github.com/unconfirmedlabs/bps): release track splits.
+- [share](https://github.com/unconfirmedlabs/share): `share::mint` checks a work's
+  currency against the canonical metadata and fixes its supply.
+
+The templates are test-only dependencies. Sui framework dependencies are pinned in
+`Move.lock`.
 
 ## Build and test
 

@@ -1,4 +1,4 @@
-/// Currencies with configurable metadata for `share_currency` check tests.
+/// Currencies with configurable metadata for `share::mint` check tests.
 /// Each test builds its own registry, so the same type can be registered once
 /// per test. `coin_registry::new_currency` must be called from the type's module.
 #[test_only]

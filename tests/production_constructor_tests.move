@@ -1,5 +1,5 @@
 /// Production constructors: the full publish flow through the share-coin
-/// templates, and every `share_currency` check.
+/// templates, and every `share::mint` check as configured by core.
 #[test_only]
 module musicos::production_constructor_tests;
 
@@ -16,8 +16,8 @@ use recording_share::recording_share::{Self as recording_template, RecordingShar
 use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent};
 use musicos::composition_share as fixture;
 use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent};
-use musicos::share_currency;
 use musicos::wrong_module;
+use share::share;
 
 const SYSTEM: address = @0x0;
 const SONGWRITER: address = @0xA1;
@@ -46,9 +46,9 @@ fun templates_create_composition_and_recording() {
     let mut currency = scenario.take_shared<Currency<CompositionShare>>();
     let (comp, comp_cap, shares) = composition::new(&mut currency, treasury_cap, scenario.ctx());
     let composition_id = object::id(&comp);
-    assert_eq!(shares.value(), share_currency::supply());
+    assert_eq!(shares.value(), composition::share_supply());
     assert!(currency.is_supply_fixed());
-    assert_eq!(currency.total_supply(), option::some(share_currency::supply()));
+    assert_eq!(currency.total_supply(), option::some(composition::share_supply()));
     comp.publish(&comp_cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(composition::composition_published_event_fields(events.pop_back()), composition_id);
@@ -71,7 +71,7 @@ fun templates_create_composition_and_recording() {
     let (rec, rec_cap, shares) = recording::new(&comp, &mut currency, treasury_cap, scenario.ctx());
     let recording_id = object::id(&rec);
     assert_eq!(rec.composition_id(), composition_id);
-    assert_eq!(shares.value(), share_currency::supply());
+    assert_eq!(shares.value(), composition::share_supply());
     assert!(currency.is_supply_fixed());
     rec.publish(&rec_cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
@@ -102,7 +102,7 @@ fun templates_create_composition_and_recording() {
     scenario.end();
 }
 
-// === share_currency checks ===
+// === share::mint checks ===
 
 /// Runs `composition::new` on a fixture currency and cleans up on success.
 fun new_composition<T>(mut currency: Currency<T>, treasury_cap: TreasuryCap<T>, registry: CoinRegistry, ctx: &mut TxContext) {
@@ -119,7 +119,7 @@ fun canonical_currency_is_accepted() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+#[test, expected_failure(abort_code = share::EInvalidType)]
 fun wrong_datatype_name_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -127,7 +127,7 @@ fun wrong_datatype_name_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+#[test, expected_failure(abort_code = share::EInvalidType)]
 fun wrong_module_name_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -136,7 +136,7 @@ fun wrong_module_name_rejected() {
 }
 
 /// A composition share currency can't back a recording.
-#[test, expected_failure(abort_code = share_currency::EInvalidShareType)]
+#[test, expected_failure(abort_code = share::EInvalidType)]
 fun composition_type_rejected_for_recording() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -147,7 +147,7 @@ fun composition_type_rejected_for_recording() {
     destroy(currency); destroy(registry);
 }
 
-#[test, expected_failure(abort_code = share_currency::ETreasuryMismatch)]
+#[test, expected_failure(abort_code = share::ETreasuryMismatch)]
 fun foreign_treasury_cap_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -158,7 +158,7 @@ fun foreign_treasury_cap_rejected() {
     new_composition(currency, other_treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::ENotZeroSupply)]
+#[test, expected_failure(abort_code = share::ENotZeroSupply)]
 fun minted_currency_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -167,7 +167,7 @@ fun minted_currency_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::ERegulatedCurrency)]
+#[test, expected_failure(abort_code = share::ERegulatedCurrency)]
 fun regulated_currency_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -176,7 +176,7 @@ fun regulated_currency_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EMetadataNotLocked)]
+#[test, expected_failure(abort_code = share::EMetadataNotLocked)]
 fun unlocked_metadata_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -185,7 +185,7 @@ fun unlocked_metadata_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidDecimals)]
+#[test, expected_failure(abort_code = share::EInvalidDecimals)]
 fun wrong_decimals_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -196,7 +196,7 @@ fun wrong_decimals_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidName)]
+#[test, expected_failure(abort_code = share::EInvalidName)]
 fun wrong_name_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -207,7 +207,7 @@ fun wrong_name_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidSymbol)]
+#[test, expected_failure(abort_code = share::EInvalidSymbol)]
 fun wrong_symbol_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -218,7 +218,7 @@ fun wrong_symbol_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidDescription)]
+#[test, expected_failure(abort_code = share::EInvalidDescription)]
 fun nonempty_description_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
@@ -229,7 +229,7 @@ fun nonempty_description_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-#[test, expected_failure(abort_code = share_currency::EInvalidIconUrl)]
+#[test, expected_failure(abort_code = share::EInvalidIconUrl)]
 fun nonempty_icon_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);

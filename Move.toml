@@ -6,6 +6,7 @@ authors = ["Miso Labs, Inc. (build@miso.fm)"]
 
 [dependencies]
 bps = { git = "https://github.com/unconfirmedlabs/bps.git", rev = "4ca1972a67d35c972ca567de7b08315e3778e52b" }
+share = { git = "https://github.com/unconfirmedlabs/share.git", rev = "58be3470a8d258ccf95dc4d0e16312505ef69d99" }
 
 composition_share = { local = "templates/composition_share", modes = ["test"] }
 recording_share = { local = "templates/recording_share", modes = ["test"] }

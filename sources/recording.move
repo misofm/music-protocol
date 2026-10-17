@@ -20,8 +20,9 @@ use sui::event::emit;
 #[test_only]
 use sui::bcs::to_bytes;
 
+use share::share;
+
 use musicos::composition::Composition;
-use musicos::share_currency;
 
 // === Errors ===
 
@@ -33,8 +34,11 @@ const ENotInitializedState: u64 = 10;
 
 const SHARE_MODULE: vector<u8> = b"recording_share";
 const SHARE_DATATYPE: vector<u8> = b"RecordingShare";
+const SHARE_DECIMALS: u8 = 6;
 const SHARE_NAME: vector<u8> = b"Recording Share";
 const SHARE_SYMBOL: vector<u8> = b"RSHARE";
+/// 100 million shares in base units.
+const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
 
@@ -78,20 +82,24 @@ public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
 
 /// Creates a recording of `composition` and its admin cap from a fresh
 /// `<package>::recording_share::RecordingShare` currency, returning the full
-/// share supply. See `share_currency::mint` for the currency checks.
+/// share supply. See `share::mint` for the currency checks.
 public fun new<RecordingShare, CompositionShare>(
     composition: &Composition<CompositionShare>,
     currency: &mut Currency<RecordingShare>,
     treasury_cap: TreasuryCap<RecordingShare>,
     ctx: &mut TxContext,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
-    let shares = share_currency::mint(
+    let shares = share::mint(
         currency,
         treasury_cap,
         SHARE_MODULE,
         SHARE_DATATYPE,
+        SHARE_DECIMALS,
         SHARE_NAME.to_string(),
         SHARE_SYMBOL.to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        SHARE_SUPPLY,
     );
     let (recording, cap) = new_internal(object::id(composition), ctx);
     (recording, cap, shares)
