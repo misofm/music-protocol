@@ -102,8 +102,9 @@ surface; extension immutability and authorization must be designed explicitly.
 Release revenue splits remain part of core consent. A release's ID is derived under
 the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(salt))`, where
 `tracks` is the stored `vector<Track>` (each a 32-byte recording ID and a `u16`
-split) and `salt` is a random `u256` the creator shares off-chain with the recording
-admins whose consent it collects. Anyone can recompute a release's ID from
+split) and `salt` is 32 random bytes the creator shares off-chain with the recording
+admins whose consent it collects. `bcs(salt)` is the length byte `0x20` and the 32
+bytes, so the salt is hashed exactly as shared, with no integer encoding. Anyone can recompute a release's ID from
 its stored tracks and the salt in `ReleasePublishedEvent`, and
 `release::derive_address` predicts it before creation. Splits must total 10,000
 basis points.

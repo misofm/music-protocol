@@ -12,6 +12,7 @@ use std::unit_test::{assert_eq, destroy};
 use sui::bcs::to_bytes;
 use bps::bps;
 use musicos::release;
+use musicos::test_helpers;
 use musicos::track;
 
 fun id(a: address): ID { object::id_from_address(a) }
@@ -28,17 +29,17 @@ fun tracks_encode_as_stored() {
     assert_eq!(bytes[34], 0x27);
 }
 
-/// One recording, 100%, salt 1.
+/// One recording, 100%, salt of 32 `0x01` bytes.
 #[test]
 fun single_track_reference_digest() {
     let tracks = vector[track::new(id(@0x1), bps::new(10000))];
     assert_eq!(
-        release::release_digest_for_testing(&tracks, 1),
-        x"318fc24c1aba9259b2b457924a1d93fe1b5d5b228ed3b3b8296b14969bf87200",
+        release::release_digest_for_testing(&tracks, &test_helpers::salt(1)),
+        x"41d58fbc54478417e05839839cf12654a55b3a34ee2405faa4a0a7623eb52aa1",
     );
 }
 
-/// Two recordings, 50/50, salt 42.
+/// Two recordings, 50/50, salt of 32 `0x2a` bytes.
 #[test]
 fun two_track_reference_digest() {
     let tracks = vector[
@@ -46,8 +47,8 @@ fun two_track_reference_digest() {
         track::new(id(@0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890), bps::new(5000)),
     ];
     assert_eq!(
-        release::release_digest_for_testing(&tracks, 42),
-        x"322a0c595bbeff96b9f0744019478c89861ff8ca2852e2460a583f9d75b8238f",
+        release::release_digest_for_testing(&tracks, &test_helpers::salt(0x2a)),
+        x"ef0e03369cafe54685e29745aae993510197d0514b5d7eb679eafc216bb4ee29",
     );
 }
 
@@ -58,10 +59,22 @@ fun derived_id_depends_on_every_input() {
     let registry = release::new_registry_for_testing(&mut ctx);
     let (a, b) = (id(@0x1), id(@0x2));
 
-    let base = registry.derive_address(vector[a, b], vector[5000, 5000], 1);
-    assert_eq!(base, registry.derive_address(vector[a, b], vector[5000, 5000], 1));
-    assert!(base != registry.derive_address(vector[a, b], vector[5000, 5000], 2));
-    assert!(base != registry.derive_address(vector[b, a], vector[5000, 5000], 1));
-    assert!(base != registry.derive_address(vector[a, b], vector[6000, 4000], 1));
+    let base = registry.derive_address(vector[a, b], vector[5000, 5000], test_helpers::salt(1));
+    assert_eq!(base, registry.derive_address(vector[a, b], vector[5000, 5000], test_helpers::salt(1)));
+    assert!(base != registry.derive_address(vector[a, b], vector[5000, 5000], test_helpers::salt(2)));
+    assert!(base != registry.derive_address(vector[b, a], vector[5000, 5000], test_helpers::salt(1)));
+    assert!(base != registry.derive_address(vector[a, b], vector[6000, 4000], test_helpers::salt(1)));
     destroy(registry);
+}
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun short_salt_rejected() {
+    let tracks = vector[track::new(id(@0x1), bps::new(10000))];
+    release::release_digest_for_testing(&tracks, &vector::tabulate!(31, |_| 0));
+}
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun long_salt_rejected() {
+    let tracks = vector[track::new(id(@0x1), bps::new(10000))];
+    release::release_digest_for_testing(&tracks, &vector::tabulate!(33, |_| 0));
 }

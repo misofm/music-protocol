@@ -49,7 +49,7 @@ fun test_release(ctx: &mut TxContext): (release::Release, release::ReleaseAdminC
 fun new_without_tracks_aborts() {
     let ctx = &mut tx_context::dummy();
     let mut registry = release::new_registry_for_testing(ctx);
-    let (rel, cap) = registry.new(vector[], 0u256);
+    let (rel, cap) = registry.new(vector[], test_helpers::salt(0));
     destroy(rel);
     destroy(cap);
     destroy(registry);
@@ -61,7 +61,7 @@ fun new_with_splits_below_total_aborts() {
     let mut registry = release::new_registry_for_testing(ctx);
     let (rel, cap) = registry.new(
         test_tracks(1, 9999, ctx), // 99.99%
-        0u256,
+        test_helpers::salt(0),
     );
     destroy(rel);
     destroy(cap);
@@ -74,7 +74,7 @@ fun new_with_splits_above_total_aborts() {
     let mut registry = release::new_registry_for_testing(ctx);
     let (rel, cap) = registry.new(
         test_tracks(2, 5001, ctx), // 100.02%
-        0u256,
+        test_helpers::salt(0),
     );
     destroy(rel);
     destroy(cap);
@@ -88,16 +88,16 @@ fun duplicate_digest_aborts() {
     let ctx = &mut tx_context::dummy();
     let mut registry = release::new_registry_for_testing(ctx);
     let rec_id = test_helpers::fake_id(ctx);
-    let rel_id = registry.derive_address(vector[rec_id], vector[10000], 7).to_id();
+    let rel_id = registry.derive_address(vector[rec_id], vector[10000], test_helpers::salt(7)).to_id();
 
     let (rel1, cap1) = registry.new(
         vector[track::consent_for_testing(rec_id, rel_id, 10000)],
-        7u256,
+        test_helpers::salt(7),
     );
     // Identical recording ids, splits, and salt: identical digest.
     let (rel2, cap2) = registry.new(
         vector[track::consent_for_testing(rec_id, rel_id, 10000)],
-        7u256,
+        test_helpers::salt(7),
     );
     destroy(rel1);
     destroy(cap1);

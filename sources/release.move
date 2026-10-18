@@ -44,10 +44,16 @@ const ENotInitializedState: u64 = 10;
 // Validation errors (20-29)
 /// Track splits don't sum to 100% (10,000 BPS).
 const EInvalidTrackSplitsSum: u64 = 20;
+/// The salt is not exactly 32 bytes.
+const EInvalidSaltLength: u64 = 21;
 
 // Reference errors (50-59)
 /// Release must contain at least one track.
 const ENoTracks: u64 = 51;
+
+// === Constants ===
+
+const SALT_LENGTH: u64 = 32;
 
 // === Structs ===
 
@@ -87,7 +93,7 @@ public enum ReleaseState has drop, store {
     /// Created but not yet published. Carries the creator's salt, a digest
     /// input `publish` reports and cannot otherwise reach.
     Initialized {
-        salt: u256,
+        salt: vector<u8>,
     },
     /// Published and immutable.
     Published,
@@ -115,7 +121,7 @@ public struct ReleaseTrackAssignedEvent has copy, drop {
 /// derivable from the transaction and the same-transaction events.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
-    salt: u256,
+    salt: vector<u8>,
 }
 
 // === Public Functions ===
@@ -136,7 +142,7 @@ fun init(ctx: &mut TxContext) {
 public fun new(
     self: &mut ReleaseRegistry,
     consents: vector<TrackConsent>,
-    salt: u256,
+    salt: vector<u8>,
 ): (Release, ReleaseAdminCap) {
     assert!(!consents.is_empty(), ENoTracks);
 
@@ -151,7 +157,7 @@ public fun new(
     assert!(split_sum == (bps::denominator!() as u64), EInvalidTrackSplitsSum);
 
     let mut release = Release {
-        id: claim(&mut self.id, ReleaseKey(release_digest(&tracks, salt))),
+        id: claim(&mut self.id, ReleaseKey(release_digest(&tracks, &salt))),
         state: ReleaseState::Initialized { salt },
         tracks,
     };
@@ -201,10 +207,10 @@ public fun derive_address(
     self: &ReleaseRegistry,
     recording_ids: vector<ID>,
     split_bps: vector<u16>,
-    salt: u256,
+    salt: vector<u8>,
 ): address {
     let tracks = recording_ids.zip_map!(split_bps, |recording_id, split| track::new(recording_id, bps::new(split)));
-    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, salt)))
+    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, &salt)))
 }
 
 
@@ -231,9 +237,11 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 // === Private Functions ===
 
 /// `blake2b256(bcs(tracks) ‖ bcs(salt))`, the key of the release's derived id.
-fun release_digest(tracks: &vector<Track>, salt: u256): vector<u8> {
+/// Aborts with `EInvalidSaltLength` unless the salt is 32 bytes.
+fun release_digest(tracks: &vector<Track>, salt: &vector<u8>): vector<u8> {
+    assert!(salt.length() == SALT_LENGTH, EInvalidSaltLength);
     let mut hash_input = to_bytes(tracks);
-    hash_input.append(to_bytes(&salt));
+    hash_input.append(to_bytes(salt));
     blake2b256(&hash_input)
 }
 
@@ -267,7 +275,7 @@ public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
 }
 
 #[test_only]
-public fun release_digest_for_testing(tracks: &vector<Track>, salt: u256): vector<u8> {
+public fun release_digest_for_testing(tracks: &vector<Track>, salt: &vector<u8>): vector<u8> {
     release_digest(tracks, salt)
 }
 
@@ -275,7 +283,7 @@ public fun release_digest_for_testing(tracks: &vector<Track>, salt: u256): vecto
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
-): (ID, u256) {
+): (ID, vector<u8>) {
     let ReleasePublishedEvent { release_id, salt } = event;
     (release_id, salt)
 }
@@ -312,7 +320,7 @@ public fun new_for_testing(
     // Test consents may target any release; only their tracks are kept.
     let mut release = Release {
         id: object::new(ctx),
-        state: ReleaseState::Initialized { salt: 0 },
+        state: ReleaseState::Initialized { salt: vector::tabulate!(SALT_LENGTH, |_| 0) },
         tracks: consents.map!(|consent| { let (_, track) = consent.into_parts(); track }),
     };
     let release_id = object::id(&release);

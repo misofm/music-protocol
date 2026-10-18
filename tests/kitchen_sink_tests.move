@@ -25,7 +25,7 @@ fun test_release_track_events_at_255_tracks() {
         if (index == 0) 0 else if (index == 254) 79 else if (index < 55) 40 else 39
     });
 
-    let salt = 7u256;
+    let salt = test_helpers::salt(7);
     let predicted_release_id = registry.derive_address(
         recording_ids,
         track_split_bps,

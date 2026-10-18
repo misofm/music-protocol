@@ -15,7 +15,7 @@ use sui::test_scenario;
 use musicos::composition::{Self, Composition};
 use musicos::recording::{Self, Recording};
 use musicos::release::{Self, Release, ReleaseRegistry};
-use musicos::test_helpers::{CompositionShare, RecordingShare};
+use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
 use musicos::track;
 
 const SONGWRITER: address = @0xA1;
@@ -23,7 +23,7 @@ const ARTIST: address = @0xA2;
 const LABEL: address = @0xA3;
 const READER: address = @0xBEEF;
 
-const SALT: u256 = 42;
+const SALT: vector<u8> = x"2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a";
 
 /// The package initializer creates and shares the only production registry.
 #[test]
@@ -159,7 +159,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     let wrong_release_id = registry.derive_address(
         vector[object::id(&rec)],
         vector[10000u16],
-        1,
+        test_helpers::salt(1),
     ).to_id();
     let t = track::consent(&rec, &rec_cap, wrong_release_id, 10000);
     test_scenario::return_shared(registry);
@@ -167,7 +167,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     scenario.next_tx(SONGWRITER);
     // ...but the release is created with salt 2: different derived id.
     let mut registry = scenario.take_shared<ReleaseRegistry>();
-    let (rel, rel_cap) = registry.new(vector[t], 2);
+    let (rel, rel_cap) = registry.new(vector[t], test_helpers::salt(2));
     destroy(rel);
     destroy(rel_cap); // new must reject without calling publish
 
