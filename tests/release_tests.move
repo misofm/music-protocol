@@ -81,7 +81,7 @@ fun new_with_splits_above_total_aborts() {
     destroy(registry);
 }
 
-/// The same digest (recording set + splits + nonce) can only ever be claimed
+/// The same digest (recording set + splits + salt) can only ever be claimed
 /// once under the same canonical registry.
 #[test, expected_failure(abort_code = derived_object::EObjectAlreadyExists)]
 fun duplicate_digest_aborts() {
@@ -94,7 +94,7 @@ fun duplicate_digest_aborts() {
         vector[track::consent_for_testing(rec_id, rel_id, 10000)],
         7u256,
     );
-    // Identical recording ids, splits, and nonce: identical digest.
+    // Identical recording ids, splits, and salt: identical digest.
     let (rel2, cap2) = registry.new(
         vector[track::consent_for_testing(rec_id, rel_id, 10000)],
         7u256,

@@ -25,18 +25,18 @@ fun test_release_track_events_at_255_tracks() {
         if (index == 0) 0 else if (index == 254) 79 else if (index < 55) 40 else 39
     });
 
-    let nonce = 7u256;
+    let salt = 7u256;
     let predicted_release_id = registry.derive_address(
         recording_ids,
         track_split_bps,
-        nonce,
+        salt,
     ).to_id();
     let tracks = vector::tabulate!(255, |index| track::consent_for_testing(
         recording_ids[index],
         predicted_release_id,
         track_split_bps[index],
     ));
-    let (rel, rel_cap) = registry.new(tracks, nonce);
+    let (rel, rel_cap) = registry.new(tracks, salt);
 
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
@@ -44,10 +44,10 @@ fun test_release_track_events_at_255_tracks() {
     destroy(rel_cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_nonce) =
+    let (event_release_id, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
-    assert_eq!(event_nonce, nonce);
+    assert_eq!(event_salt, salt);
 
     let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
     assert_eq!(track_events.length(), 255);

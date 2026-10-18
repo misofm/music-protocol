@@ -100,10 +100,11 @@ surface; extension immutability and authorization must be designed explicitly.
 ## Release consent
 
 Release revenue splits remain part of core consent. A release's ID is derived under
-the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(nonce))`, where
+the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(salt))`, where
 `tracks` is the stored `vector<Track>` (each a 32-byte recording ID and a `u16`
-split) and `nonce` is the creator's `u256`. Anyone can recompute a release's ID from
-its stored tracks and the nonce in `ReleasePublishedEvent`, and
+split) and `salt` is a random `u256` the creator shares off-chain with the recording
+admins whose consent it collects. Anyone can recompute a release's ID from
+its stored tracks and the salt in `ReleasePublishedEvent`, and
 `release::derive_address` predicts it before creation. Splits must total 10,000
 basis points.
 
@@ -112,13 +113,13 @@ It returns a store-only `TrackConsent`, which extensions can wrap for offers or
 escrow. Its getters expose `release_id()` and read-only `track()` access.
 
 `release::new` accepts `vector<TrackConsent>`, derives the release ID from the
-nested tracks and nonce, and validates and consumes every consent. It stores only
+nested tracks and salt, and validates and consumes every consent. It stores only
 `vector<Track>`; consent release IDs are discarded. Unwrapping is package-private,
 and neither type has `copy`. There is no public constructor for a bare track.
 
 ```move
 let consent = track::consent(&recording, &recording_cap, release_id, 10000);
-let (release, release_cap) = release::new(&mut registry, vector[consent], nonce);
+let (release, release_cap) = release::new(&mut registry, vector[consent], salt);
 release.publish(&release_cap);
 ```
 
@@ -140,7 +141,7 @@ extension access remains available afterward.
 | `CompositionPublishedEvent<CompositionShare>` | Composition ID |
 | `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
 | `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID, split BPS |
-| `ReleasePublishedEvent` | Release ID and creator nonce |
+| `ReleasePublishedEvent` | Release ID and creator salt |
 
 Track events are emitted in tracklist order. Transaction metadata supplies sender and time.
 

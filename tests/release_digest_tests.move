@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// Release digest and `release::derive_address`: the digest is
-/// `blake2b256(bcs(vector<Track>) ‖ bcs(nonce))`. Reference digests were
+/// `blake2b256(bcs(vector<Track>) ‖ bcs(salt))`. Reference digests were
 /// computed independently (Python `hashlib.blake2b`, digest size 32) for SDKs
 /// to match.
 #[test_only]
@@ -28,7 +28,7 @@ fun tracks_encode_as_stored() {
     assert_eq!(bytes[34], 0x27);
 }
 
-/// One recording, 100%, nonce 1.
+/// One recording, 100%, salt 1.
 #[test]
 fun single_track_reference_digest() {
     let tracks = vector[track::new(id(@0x1), bps::new(10000))];
@@ -38,7 +38,7 @@ fun single_track_reference_digest() {
     );
 }
 
-/// Two recordings, 50/50, nonce 42.
+/// Two recordings, 50/50, salt 42.
 #[test]
 fun two_track_reference_digest() {
     let tracks = vector[

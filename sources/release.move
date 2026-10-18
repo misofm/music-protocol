@@ -9,8 +9,9 @@
 /// ### Consent scope
 ///
 /// The release id is derived under the canonical `ReleaseRegistry` from
-/// `blake2b256(bcs(tracks) ‖ bcs(nonce))`: the stored tracklist itself and the
-/// creator's nonce. A `TrackConsent` commits to that id at creation, consenting
+/// `blake2b256(bcs(tracks) ‖ bcs(salt))`: the stored tracklist itself and the
+/// creator's random salt, shared off-chain with the consenting recording
+/// admins. A `TrackConsent` commits to that id at creation, consenting
 /// to exactly the release's economics and membership and nothing else.
 ///
 /// The id also commits to the registry's UID, so every pending consent depends
@@ -83,10 +84,10 @@ public struct ReleaseAdminCapKey() has copy, drop, store;
 
 /// Lifecycle state of a release.
 public enum ReleaseState has drop, store {
-    /// Created but not yet published. Carries the creator's nonce, a digest
+    /// Created but not yet published. Carries the creator's salt, a digest
     /// input `publish` reports and cannot otherwise reach.
     Initialized {
-        nonce: u256,
+        salt: u256,
     },
     /// Published and immutable.
     Published,
@@ -108,13 +109,13 @@ public struct ReleaseTrackAssignedEvent has copy, drop {
 }
 
 /// Emitted once when a release is published, after its track events:
-/// identity and the creator's nonce. The publish time is the event's
+/// identity and the creator's salt. The publish time is the event's
 /// transaction timestamp. Everything else (sender, admin cap address, track
 /// count, registry id, and the digest — see `release_digest`) is
 /// derivable from the transaction and the same-transaction events.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
-    nonce: u256,
+    salt: u256,
 }
 
 // === Public Functions ===
@@ -135,7 +136,7 @@ fun init(ctx: &mut TxContext) {
 public fun new(
     self: &mut ReleaseRegistry,
     consents: vector<TrackConsent>,
-    nonce: u256,
+    salt: u256,
 ): (Release, ReleaseAdminCap) {
     assert!(!consents.is_empty(), ENoTracks);
 
@@ -150,8 +151,8 @@ public fun new(
     assert!(split_sum == (bps::denominator!() as u64), EInvalidTrackSplitsSum);
 
     let mut release = Release {
-        id: claim(&mut self.id, ReleaseKey(release_digest(&tracks, nonce))),
-        state: ReleaseState::Initialized { nonce },
+        id: claim(&mut self.id, ReleaseKey(release_digest(&tracks, salt))),
+        state: ReleaseState::Initialized { salt },
         tracks,
     };
     let release_id = object::id(&release);
@@ -172,8 +173,8 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
 
     match (&self.state) {
-        ReleaseState::Initialized { nonce } => {
-            let nonce = *nonce;
+        ReleaseState::Initialized { salt } => {
+            let salt = *salt;
             self.emit_track_events();
             self.state = ReleaseState::Published;
 
@@ -181,7 +182,7 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
 
             transfer::share_object(self);
 
-            emit(ReleasePublishedEvent { release_id, nonce });
+            emit(ReleasePublishedEvent { release_id, salt });
         },
         _ => abort ENotInitializedState,
     }
@@ -194,16 +195,16 @@ public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
 
 // === View Functions ===
 
-/// The address `new` would claim for this tracklist and nonce. Not proof
+/// The address `new` would claim for this tracklist and salt. Not proof
 /// that the release exists. Read-only registry access, so it parallelizes.
 public fun derive_address(
     self: &ReleaseRegistry,
     recording_ids: vector<ID>,
     split_bps: vector<u16>,
-    nonce: u256,
+    salt: u256,
 ): address {
     let tracks = recording_ids.zip_map!(split_bps, |recording_id, split| track::new(recording_id, bps::new(split)));
-    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, nonce)))
+    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, salt)))
 }
 
 
@@ -229,10 +230,10 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 
 // === Private Functions ===
 
-/// `blake2b256(bcs(tracks) ‖ bcs(nonce))`, the key of the release's derived id.
-fun release_digest(tracks: &vector<Track>, nonce: u256): vector<u8> {
+/// `blake2b256(bcs(tracks) ‖ bcs(salt))`, the key of the release's derived id.
+fun release_digest(tracks: &vector<Track>, salt: u256): vector<u8> {
     let mut hash_input = to_bytes(tracks);
-    hash_input.append(to_bytes(&nonce));
+    hash_input.append(to_bytes(&salt));
     blake2b256(&hash_input)
 }
 
@@ -266,8 +267,8 @@ public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
 }
 
 #[test_only]
-public fun release_digest_for_testing(tracks: &vector<Track>, nonce: u256): vector<u8> {
-    release_digest(tracks, nonce)
+public fun release_digest_for_testing(tracks: &vector<Track>, salt: u256): vector<u8> {
+    release_digest(tracks, salt)
 }
 
 /// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test assertions.
@@ -275,8 +276,8 @@ public fun release_digest_for_testing(tracks: &vector<Track>, nonce: u256): vect
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
 ): (ID, u256) {
-    let ReleasePublishedEvent { release_id, nonce } = event;
-    (release_id, nonce)
+    let ReleasePublishedEvent { release_id, salt } = event;
+    (release_id, salt)
 }
 
 // State predicates are test-only: create-and-publish is atomic, so every
@@ -311,7 +312,7 @@ public fun new_for_testing(
     // Test consents may target any release; only their tracks are kept.
     let mut release = Release {
         id: object::new(ctx),
-        state: ReleaseState::Initialized { nonce: 0 },
+        state: ReleaseState::Initialized { salt: 0 },
         tracks: consents.map!(|consent| { let (_, track) = consent.into_parts(); track }),
     };
     let release_id = object::id(&release);

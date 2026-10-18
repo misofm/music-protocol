@@ -23,7 +23,7 @@ const ARTIST: address = @0xA2;
 const LABEL: address = @0xA3;
 const READER: address = @0xBEEF;
 
-const NONCE: u256 = 42;
+const SALT: u256 = 42;
 
 /// The package initializer creates and shares the only production registry.
 #[test]
@@ -72,7 +72,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let predicted_release_id = registry.derive_address(
         vector[recording_id],
         vector[10000u16],
-        NONCE,
+        SALT,
     ).to_id();
     let t = track::consent(&rec, &rec_cap, predicted_release_id, 10000);
     test_scenario::return_shared(comp);
@@ -82,7 +82,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     // === Tx 4 (LABEL): assemble and publish the release ===
     scenario.next_tx(LABEL);
     let mut registry = scenario.take_shared<ReleaseRegistry>();
-    let (rel, rel_cap) = registry.new(vector[t], NONCE);
+    let (rel, rel_cap) = registry.new(vector[t], SALT);
     // The claimed UID must equal the prediction the track was bound to.
     assert_eq!(object::id(&rel), predicted_release_id);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
@@ -91,10 +91,10 @@ fun full_track_release_flow_publishes_at_derived_id() {
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_nonce) =
+    let (event_release_id, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
-    assert_eq!(event_nonce, NONCE);
+    assert_eq!(event_salt, SALT);
     let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
     assert_eq!(track_events.length(), 1);
     let (track_release_id, position, event_recording, event_split) =
@@ -108,12 +108,12 @@ fun full_track_release_flow_publishes_at_derived_id() {
     assert_eq!(event_recording, rec_event_recording_id);
     assert_eq!(rec_event_composition_id, composition_id);
     // Re-deriving the release id from the track events' recordings and splits
-    // and the release event's nonce reproduces `release_id`.
+    // and the release event's salt reproduces `release_id`.
     assert_eq!(
         registry.derive_address(
             vector[event_recording],
             vector[event_split],
-            event_nonce,
+            event_salt,
         ).to_id(),
         event_release_id,
     );
@@ -154,7 +154,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     );
 
     scenario.next_tx(SONGWRITER);
-    // Track consented to the release that nonce 1 would produce...
+    // Track consented to the release that salt 1 would produce...
     let registry = scenario.take_shared<ReleaseRegistry>();
     let wrong_release_id = registry.derive_address(
         vector[object::id(&rec)],
@@ -165,7 +165,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     test_scenario::return_shared(registry);
 
     scenario.next_tx(SONGWRITER);
-    // ...but the release is created with nonce 2: different derived id.
+    // ...but the release is created with salt 2: different derived id.
     let mut registry = scenario.take_shared<ReleaseRegistry>();
     let (rel, rel_cap) = registry.new(vector[t], 2);
     destroy(rel);
