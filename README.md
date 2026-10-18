@@ -104,7 +104,7 @@ the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(nonce))`, wher
 `tracks` is the stored `vector<Track>` (each a 32-byte recording ID and a `u16`
 split) and `nonce` is the creator's `u256`. Anyone can recompute a release's ID from
 its stored tracks and the nonce in `ReleasePublishedEvent`, and
-`derive_target_release_id` predicts it before creation. Splits must total 10,000
+`release::derive_address` predicts it before creation. Splits must total 10,000
 basis points.
 
 A recording admin calls `track::consent(&recording, &cap, release_id, split_bps)`.

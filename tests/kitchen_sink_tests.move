@@ -26,11 +26,11 @@ fun test_release_track_events_at_255_tracks() {
     });
 
     let nonce = 7u256;
-    let predicted_release_id = registry.derive_target_release_id(
+    let predicted_release_id = registry.derive_address(
         recording_ids,
         track_split_bps,
         nonce,
-    );
+    ).to_id();
     let tracks = vector::tabulate!(255, |index| track::consent_for_testing(
         recording_ids[index],
         predicted_release_id,

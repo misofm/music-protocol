@@ -88,7 +88,7 @@ fun duplicate_digest_aborts() {
     let ctx = &mut tx_context::dummy();
     let mut registry = release::new_registry_for_testing(ctx);
     let rec_id = test_helpers::fake_id(ctx);
-    let rel_id = registry.derive_target_release_id(vector[rec_id], vector[10000], 7);
+    let rel_id = registry.derive_address(vector[rec_id], vector[10000], 7).to_id();
 
     let (rel1, cap1) = registry.new(
         vector[track::consent_for_testing(rec_id, rel_id, 10000)],

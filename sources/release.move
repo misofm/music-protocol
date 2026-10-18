@@ -194,16 +194,16 @@ public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
 
 // === View Functions ===
 
-/// Derives the release id `new` would claim for this tracklist and nonce,
-/// without creating a release. Read-only registry access, so it parallelizes.
-public fun derive_target_release_id(
+/// The address `new` would claim for this tracklist and nonce. Not proof
+/// that the release exists. Read-only registry access, so it parallelizes.
+public fun derive_address(
     self: &ReleaseRegistry,
     recording_ids: vector<ID>,
     split_bps: vector<u16>,
     nonce: u256,
-): ID {
+): address {
     let tracks = recording_ids.zip_map!(split_bps, |recording_id, split| track::new(recording_id, bps::new(split)));
-    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, nonce))).to_id()
+    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, nonce)))
 }
 
 

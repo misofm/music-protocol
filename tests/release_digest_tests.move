@@ -1,7 +1,7 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Release digest and `derive_target_release_id`: the digest is
+/// Release digest and `release::derive_address`: the digest is
 /// `blake2b256(bcs(vector<Track>) ‖ bcs(nonce))`. Reference digests were
 /// computed independently (Python `hashlib.blake2b`, digest size 32) for SDKs
 /// to match.
@@ -58,10 +58,10 @@ fun derived_id_depends_on_every_input() {
     let registry = release::new_registry_for_testing(&mut ctx);
     let (a, b) = (id(@0x1), id(@0x2));
 
-    let base = registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 1);
-    assert_eq!(base, registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 1));
-    assert!(base != registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 2));
-    assert!(base != registry.derive_target_release_id(vector[b, a], vector[5000, 5000], 1));
-    assert!(base != registry.derive_target_release_id(vector[a, b], vector[6000, 4000], 1));
+    let base = registry.derive_address(vector[a, b], vector[5000, 5000], 1);
+    assert_eq!(base, registry.derive_address(vector[a, b], vector[5000, 5000], 1));
+    assert!(base != registry.derive_address(vector[a, b], vector[5000, 5000], 2));
+    assert!(base != registry.derive_address(vector[b, a], vector[5000, 5000], 1));
+    assert!(base != registry.derive_address(vector[a, b], vector[6000, 4000], 1));
     destroy(registry);
 }

@@ -69,11 +69,11 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let registry = scenario.take_shared<ReleaseRegistry>();
     let recording_id = object::id(&rec);
     let composition_id = object::id(&comp);
-    let predicted_release_id = registry.derive_target_release_id(
+    let predicted_release_id = registry.derive_address(
         vector[recording_id],
         vector[10000u16],
         NONCE,
-    );
+    ).to_id();
     let t = track::consent(&rec, &rec_cap, predicted_release_id, 10000);
     test_scenario::return_shared(comp);
     test_scenario::return_shared(rec);
@@ -110,11 +110,11 @@ fun full_track_release_flow_publishes_at_derived_id() {
     // Re-deriving the release id from the track events' recordings and splits
     // and the release event's nonce reproduces `release_id`.
     assert_eq!(
-        registry.derive_target_release_id(
+        registry.derive_address(
             vector[event_recording],
             vector[event_split],
             event_nonce,
-        ),
+        ).to_id(),
         event_release_id,
     );
 
@@ -156,11 +156,11 @@ fun new_aborts_when_consent_targets_a_different_release() {
     scenario.next_tx(SONGWRITER);
     // Track consented to the release that nonce 1 would produce...
     let registry = scenario.take_shared<ReleaseRegistry>();
-    let wrong_release_id = registry.derive_target_release_id(
+    let wrong_release_id = registry.derive_address(
         vector[object::id(&rec)],
         vector[10000u16],
         1,
-    );
+    ).to_id();
     let t = track::consent(&rec, &rec_cap, wrong_release_id, 10000);
     test_scenario::return_shared(registry);
 
