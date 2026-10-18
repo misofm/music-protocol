@@ -71,7 +71,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let composition_id = object::id(&comp);
     let predicted_release_id = registry.derive_target_release_id(
         vector[recording_id],
-        vector[10000u64],
+        vector[10000u16],
         NONCE,
     );
     let t = track::consent(&rec, &rec_cap, predicted_release_id, 10000);
@@ -112,7 +112,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     assert_eq!(
         registry.derive_target_release_id(
             vector[event_recording],
-            vector[event_split as u64],
+            vector[event_split],
             event_nonce,
         ),
         event_release_id,
@@ -140,7 +140,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
 /// A track whose creator consented to a different release cannot be
 /// consumed into this one — the digest binding is enforced at
 /// `release::new`.
-#[test, expected_failure(abort_code = track::EUnauthorizedAssignment)]
+#[test, expected_failure(abort_code = release::EUnauthorizedAssignment)]
 fun new_aborts_when_consent_targets_a_different_release() {
     let mut scenario = test_scenario::begin(SONGWRITER);
     release::init_for_testing(scenario.ctx());
@@ -158,7 +158,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     let registry = scenario.take_shared<ReleaseRegistry>();
     let wrong_release_id = registry.derive_target_release_id(
         vector[object::id(&rec)],
-        vector[10000u64],
+        vector[10000u16],
         1,
     );
     let t = track::consent(&rec, &rec_cap, wrong_release_id, 10000);

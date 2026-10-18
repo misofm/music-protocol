@@ -8,11 +8,10 @@
 ///
 /// ### Consent scope
 ///
-/// The release id is derived under the canonical `ReleaseRegistry` from a
-/// digest of the ordered `(recording, split)` pairs and the creator's nonce.
-/// A `TrackConsent` commits to that id at creation, consenting to exactly the
-/// release's economics and membership and nothing else; the stored tracklist
-/// has the digest pre-image's shape, so nothing is chosen after consent.
+/// The release id is derived under the canonical `ReleaseRegistry` from
+/// `blake2b256(bcs(tracks) ‖ bcs(nonce))`: the stored tracklist itself and the
+/// creator's nonce. A `TrackConsent` commits to that id at creation, consenting
+/// to exactly the release's economics and membership and nothing else.
 ///
 /// The id also commits to the registry's UID, so every pending consent depends
 /// on that namespace staying reachable. `ReleaseRegistry` is therefore
@@ -27,13 +26,15 @@ use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use sui::hash::blake2b256;
 use bps::bps;
-use musicos::track::{Track, TrackConsent};
+use musicos::track::{Self, Track, TrackConsent};
 
 // === Errors ===
 
 // Authorization errors (0-9)
 /// The provided admin capability does not match this release.
 const EUnauthorized: u64 = 0;
+/// A consent targets a different release.
+const EUnauthorizedAssignment: u64 = 1;
 
 // State errors (10-19)
 /// Operation requires Initialized state.
@@ -109,7 +110,7 @@ public struct ReleaseTrackAssignedEvent has copy, drop {
 /// Emitted once when a release is published, after its track events:
 /// identity and the creator's nonce. The publish time is the event's
 /// transaction timestamp. Everything else (sender, admin cap address, track
-/// count, registry id, and the digest — see `calculate_release_digest`) is
+/// count, registry id, and the digest — see `release_digest`) is
 /// derivable from the transaction and the same-transaction events.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
@@ -138,26 +139,27 @@ public fun new(
 ): (Release, ReleaseAdminCap) {
     assert!(!consents.is_empty(), ENoTracks);
 
-    // The digest pre-image is the stored shape: ids and splits in tracklist
-    // order, splits widened to u64.
-    let recording_ids = consents.map_ref!(|consent| consent.track().recording_id());
-    let track_split_values = consents.map_ref!(|consent| consent.track().split_bps().value() as u64);
-    let split_sum = track_split_values.fold!(0u64, |sum, value| sum + value);
+    let mut consented_release_ids = vector[];
+    let tracks = consents.map!(|consent| {
+        let (release_id, track) = consent.into_parts();
+        consented_release_ids.push_back(release_id);
+        track
+    });
+    let mut split_sum = 0u64;
+    tracks.do_ref!(|track| split_sum = split_sum + (track.split_bps().value() as u64));
     assert!(split_sum == (bps::denominator!() as u64), EInvalidTrackSplitsSum);
 
-    let release_digest = calculate_release_digest(recording_ids, track_split_values, nonce);
     let mut release = Release {
-        id: claim(&mut self.id, ReleaseKey(release_digest)),
+        id: claim(&mut self.id, ReleaseKey(release_digest(&tracks, nonce))),
         state: ReleaseState::Initialized { nonce },
-        tracks: vector[],
+        tracks,
     };
-
     let release_id = object::id(&release);
-    release.tracks = consents.map!(|consent| consent.into_track(release_id));
+    consented_release_ids.do!(|consented| assert!(consented == release_id, EUnauthorizedAssignment));
 
     let release_admin_cap = ReleaseAdminCap {
         id: claim(&mut release.id, ReleaseAdminCapKey()),
-        release_id: object::id(&release),
+        release_id,
     };
 
     (release, release_admin_cap)
@@ -192,16 +194,16 @@ public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
 
 // === View Functions ===
 
-/// Derives the release id `new` would claim for these inputs, without
-/// creating a release. Read-only registry access, so it parallelizes.
+/// Derives the release id `new` would claim for this tracklist and nonce,
+/// without creating a release. Read-only registry access, so it parallelizes.
 public fun derive_target_release_id(
     self: &ReleaseRegistry,
     recording_ids: vector<ID>,
-    track_split_values: vector<u64>,
+    split_bps: vector<u16>,
     nonce: u256,
 ): ID {
-    let release_digest = calculate_release_digest(recording_ids, track_split_values, nonce);
-    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest)).to_id()
+    let tracks = recording_ids.zip_map!(split_bps, |recording_id, split| track::new(recording_id, bps::new(split)));
+    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&tracks, nonce))).to_id()
 }
 
 
@@ -227,20 +229,10 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 
 // === Private Functions ===
 
-/// The release digest:
-/// `blake2b256(bcs(recording_ids) || bcs(split_bps as u64) || bcs(nonce))`.
-/// The release id is this digest's derived address under the registry
-/// (`ReleaseKey`).
-fun calculate_release_digest(
-    recording_ids: vector<ID>,
-    track_split_values: vector<u64>,
-    nonce: u256,
-): vector<u8> {
-    let mut hash_input = vector<u8>[];
-    hash_input.append(to_bytes(&recording_ids));
-    hash_input.append(to_bytes(&track_split_values));
+/// `blake2b256(bcs(tracks) ‖ bcs(nonce))`, the key of the release's derived id.
+fun release_digest(tracks: &vector<Track>, nonce: u256): vector<u8> {
+    let mut hash_input = to_bytes(tracks);
     hash_input.append(to_bytes(&nonce));
-
     blake2b256(&hash_input)
 }
 
@@ -271,6 +263,11 @@ public fun init_for_testing(ctx: &mut TxContext) {
 #[test_only]
 public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
     ReleaseRegistry { id: object::new(ctx) }
+}
+
+#[test_only]
+public fun release_digest_for_testing(tracks: &vector<Track>, nonce: u256): vector<u8> {
+    release_digest(tracks, nonce)
 }
 
 /// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test assertions.
@@ -311,18 +308,13 @@ public fun new_for_testing(
     consents: vector<TrackConsent>,
     ctx: &mut TxContext,
 ): (Release, ReleaseAdminCap) {
+    // Test consents may target any release; only their tracks are kept.
     let mut release = Release {
         id: object::new(ctx),
         state: ReleaseState::Initialized { nonce: 0 },
-        tracks: vector[],
+        tracks: consents.map!(|consent| { let (_, track) = consent.into_parts(); track }),
     };
-
-    // Retarget test consents before consuming them into stored tracks.
     let release_id = object::id(&release);
-    release.tracks = consents.map!(|mut consent| {
-        consent.set_release_id_for_testing(release_id);
-        consent.into_track(release_id)
-    });
 
     let release_admin_cap = ReleaseAdminCap {
         id: claim(&mut release.id, ReleaseAdminCapKey()),

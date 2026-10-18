@@ -99,9 +99,13 @@ surface; extension immutability and authorization must be designed explicitly.
 
 ## Release consent
 
-Release revenue splits remain part of core consent. A release's ID is derived from
-the ordered `(recording_id, split)` pairs and creator nonce under the shared
-`ReleaseRegistry`. Splits must total 10,000 basis points.
+Release revenue splits remain part of core consent. A release's ID is derived under
+the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(nonce))`, where
+`tracks` is the stored `vector<Track>` (each a 32-byte recording ID and a `u16`
+split) and `nonce` is the creator's `u256`. Anyone can recompute a release's ID from
+its stored tracks and the nonce in `ReleasePublishedEvent`, and
+`derive_target_release_id` predicts it before creation. Splits must total 10,000
+basis points.
 
 A recording admin calls `track::consent(&recording, &cap, release_id, split_bps)`.
 It returns a store-only `TrackConsent`, which extensions can wrap for offers or

@@ -10,11 +10,6 @@ module musicos::track;
 use bps::bps::{Self, BPS};
 use musicos::recording::{Recording, RecordingAdminCap};
 
-// === Errors ===
-
-/// Track's target release ID does not match the assigning release.
-const EUnauthorizedAssignment: u64 = 0;
-
 // === Structs ===
 
 /// A recording on a release with its revenue split.
@@ -80,11 +75,15 @@ public fun track_consent_track(consent: &TrackConsent): &Track { &consent.track 
 
 // === Package Functions ===
 
-/// Consumes consent after checking the release identity.
-public(package) fun into_track(self: TrackConsent, release_id: ID): Track {
-    let TrackConsent { release_id: consented_release_id, track } = self;
-    assert!(release_id == consented_release_id, EUnauthorizedAssignment);
-    track
+/// Builds a bare track, for release ID derivation.
+public(package) fun new(recording_id: ID, split_bps: BPS): Track {
+    Track { recording_id, split_bps }
+}
+
+/// Consumes consent, returning the consented release ID and the track.
+public(package) fun into_parts(self: TrackConsent): (ID, Track) {
+    let TrackConsent { release_id, track } = self;
+    (release_id, track)
 }
 
 // === Test Functions ===
@@ -99,9 +98,4 @@ public fun consent_for_testing(
         release_id,
         track: Track { recording_id, split_bps: bps::new(split_bps) },
     }
-}
-
-#[test_only]
-public fun set_release_id_for_testing(self: &mut TrackConsent, release_id: ID) {
-    self.release_id = release_id;
 }

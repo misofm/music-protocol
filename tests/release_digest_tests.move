@@ -1,154 +1,67 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Release digest and `derive_target_release_id` tests, verifying TypeScript
-/// SDK parity. Pure hashing/BCS math with no ownership mechanics.
+/// Release digest and `derive_target_release_id`: the digest is
+/// `blake2b256(bcs(vector<Track>) ‖ bcs(nonce))`. Reference digests were
+/// computed independently (Python `hashlib.blake2b`, digest size 32) for SDKs
+/// to match.
 #[test_only]
 module musicos::release_digest_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::bcs::to_bytes;
-use sui::hash::blake2b256;
+use bps::bps;
 use musicos::release;
-use musicos::test_helpers;
+use musicos::track;
 
-/// Mirrors `release::calculate_release_digest` for SDK parity checks.
-fun calculate_release_digest(
-    recording_ids: vector<ID>,
-    track_split_values: vector<u64>,
-    nonce: u256,
-): vector<u8> {
-    let mut hash_input = vector<u8>[];
-    hash_input.append(to_bytes(&recording_ids));
-    hash_input.append(to_bytes(&track_split_values));
-    hash_input.append(to_bytes(&nonce));
+fun id(a: address): ID { object::id_from_address(a) }
 
-    blake2b256(&hash_input)
+/// `vector<Track>` encodes as a ULEB128 length, then 32 ID bytes and a 2-byte
+/// little-endian split per track: exactly the stored tracklist.
+#[test]
+fun tracks_encode_as_stored() {
+    let tracks = vector[track::new(id(@0x1), bps::new(10000))];
+    let bytes = to_bytes(&tracks);
+    assert_eq!(bytes.length(), 1 + 32 + 2);
+    assert_eq!(bytes[0], 1);
+    assert_eq!(bytes[33], 0x10); // 10000 = 0x2710, little-endian
+    assert_eq!(bytes[34], 0x27);
 }
 
+/// One recording, 100%, nonce 1.
 #[test]
-/// Test that different nonces produce different digests.
-fun different_nonces_produce_different_digests() {
-    let recording_id = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000001
+fun single_track_reference_digest() {
+    let tracks = vector[track::new(id(@0x1), bps::new(10000))];
+    assert_eq!(
+        release::release_digest_for_testing(&tracks, 1),
+        x"318fc24c1aba9259b2b457924a1d93fe1b5d5b228ed3b3b8296b14969bf87200",
     );
-    let recording_ids = vector[recording_id];
-    let track_splits = vector[10000u64];
-
-    let digest_nonce_1 = calculate_release_digest(recording_ids, track_splits, 1u256);
-    let digest_nonce_2 = calculate_release_digest(recording_ids, track_splits, 2u256);
-
-    assert!(digest_nonce_1 != digest_nonce_2);
 }
 
+/// Two recordings, 50/50, nonce 42.
 #[test]
-/// Test that different recording IDs produce different digests.
-fun different_recordings_produce_different_digests() {
-    let recording_id_1 = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000001
+fun two_track_reference_digest() {
+    let tracks = vector[
+        track::new(id(@0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef), bps::new(5000)),
+        track::new(id(@0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890), bps::new(5000)),
+    ];
+    assert_eq!(
+        release::release_digest_for_testing(&tracks, 42),
+        x"322a0c595bbeff96b9f0744019478c89861ff8ca2852e2460a583f9d75b8238f",
     );
-    let recording_id_2 = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000002
-    );
-    let track_splits = vector[10000u64];
-    let nonce = 1u256;
-
-    let digest_1 = calculate_release_digest(vector[recording_id_1], track_splits, nonce);
-    let digest_2 = calculate_release_digest(vector[recording_id_2], track_splits, nonce);
-
-    assert!(digest_1 != digest_2);
 }
 
+/// Every input changes the derived id; the same inputs always give the same id.
 #[test]
-/// Test that different track splits produce different digests.
-fun different_splits_produce_different_digests() {
-    let recording_id_1 = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000001
-    );
-    let recording_id_2 = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000002
-    );
-    let recording_ids = vector[recording_id_1, recording_id_2];
-    let nonce = 1u256;
-
-    let digest_50_50 = calculate_release_digest(recording_ids, vector[5000u64, 5000u64], nonce);
-    let digest_60_40 = calculate_release_digest(recording_ids, vector[6000u64, 4000u64], nonce);
-
-    assert!(digest_50_50 != digest_60_40);
-}
-
-#[test]
-/// The digest pre-image components have the BCS shape the TypeScript SDK mirrors.
-fun bcs_encoding_has_expected_structure() {
-    let recording_id = object::id_from_address(
-        @0x0000000000000000000000000000000000000000000000000000000000000001
-    );
-
-    // vector<ID>, 1 element: ULEB128 length byte + 32-byte address.
-    assert!(to_bytes(&vector[recording_id]).length() == 33);
-    // vector<u64>, 1 element: length byte + 8-byte little-endian u64.
-    assert!(to_bytes(&vector[10000u64]).length() == 9);
-    // u256: 32 bytes little-endian.
-    assert!(to_bytes(&1u256).length() == 32);
-}
-
-// === derive_target_release_id parity tests ===
-// These verify that the on-chain derive_target_release_id() returns the same
-// ID as the TypeScript SDK's deriveReleaseId(). Expected values were computed
-// from @sona/sdk/derive with the same inputs.
-
-#[test]
-/// Single recording, 100% split, nonce=1.
-/// TypeScript expected digest: dccbc50994240ba6de125686dc040b27b8c739fe8b55d8d7cbf923535b57af6c
-fun single_target_release_id_derivation_is_deterministic() {
+fun derived_id_depends_on_every_input() {
     let mut ctx = tx_context::dummy();
     let registry = release::new_registry_for_testing(&mut ctx);
+    let (a, b) = (id(@0x1), id(@0x2));
 
-    let recording_ids = vector[
-        object::id_from_address(@0x0000000000000000000000000000000000000000000000000000000000000001),
-    ];
-    let track_splits = vector[10000u64];
-    let nonce = 1u256;
-
-    // Verify digest matches TypeScript output
-    let digest = calculate_release_digest(recording_ids, track_splits, nonce);
-    let expected_digest = x"dccbc50994240ba6de125686dc040b27b8c739fe8b55d8d7cbf923535b57af6c";
-    assert_eq!(digest, expected_digest);
-
-    // The release id depends on the fixture registry's id, so only determinism
-    // is checked here.
-    let release_id_1 = registry.derive_target_release_id(recording_ids, track_splits, nonce);
-    let release_id_2 = registry.derive_target_release_id(recording_ids, track_splits, nonce);
-    assert_eq!(release_id_1, release_id_2);
-    destroy(registry);
-}
-
-#[test]
-/// Two recordings, 50/50 split, nonce=42.
-/// TypeScript expected digest: 58895ea293730fcbca59e08cadd81c3a8da7c0604fa014ac629b0a8f543f4141
-fun multiple_target_release_id_derivation_is_deterministic() {
-    let mut ctx = tx_context::dummy();
-    let registry = release::new_registry_for_testing(&mut ctx);
-
-    let recording_ids = vector[
-        object::id_from_address(@0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef),
-        object::id_from_address(@0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890),
-    ];
-    let track_splits = vector[5000u64, 5000u64];
-    let nonce = 42u256;
-
-    // Verify digest matches TypeScript output
-    let digest = calculate_release_digest(recording_ids, track_splits, nonce);
-    let expected_digest = x"58895ea293730fcbca59e08cadd81c3a8da7c0604fa014ac629b0a8f543f4141";
-    assert_eq!(digest, expected_digest);
-
-    // Verify derive_target_release_id is deterministic
-    let release_id_1 = registry.derive_target_release_id(recording_ids, track_splits, nonce);
-    let release_id_2 = registry.derive_target_release_id(recording_ids, track_splits, nonce);
-    assert_eq!(release_id_1, release_id_2);
-
-    // Verify different inputs produce different IDs
-    let release_id_different_nonce = registry.derive_target_release_id(recording_ids, track_splits, 43u256);
-    assert!(release_id_1 != release_id_different_nonce);
+    let base = registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 1);
+    assert_eq!(base, registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 1));
+    assert!(base != registry.derive_target_release_id(vector[a, b], vector[5000, 5000], 2));
+    assert!(base != registry.derive_target_release_id(vector[b, a], vector[5000, 5000], 1));
+    assert!(base != registry.derive_target_release_id(vector[a, b], vector[6000, 4000], 1));
     destroy(registry);
 }
