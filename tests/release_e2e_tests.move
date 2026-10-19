@@ -4,7 +4,7 @@
 /// End-to-end release flow across transactions and actors, through the
 /// canonical shared `ReleaseRegistry`: a songwriter publishes a composition,
 /// an artist publishes a recording and consents to the predicted release id
-/// via `track::consent`, a label assembles and publishes the release (verifying
+/// via `release::consent`, a label assembles and publishes the release (verifying
 /// every track targets it), and anyone can read the result.
 #[test_only]
 module musicos::release_e2e_tests;
@@ -16,7 +16,6 @@ use musicos::composition::{Self, Composition};
 use musicos::recording::{Self, Recording};
 use musicos::release::{Self, Release, ReleaseRegistry};
 use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
-use musicos::track;
 
 const SONGWRITER: address = @0xA1;
 const ARTIST: address = @0xA2;
@@ -62,7 +61,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
         recording::recording_published_event_fields(recording_events.pop_back());
     test_scenario::return_shared(comp);
 
-    // === Tx 3 (ARTIST): consent to the predicted release id via track::consent ===
+    // === Tx 3 (ARTIST): consent to the predicted release id via release::consent ===
     scenario.next_tx(ARTIST);
     let comp = scenario.take_shared<Composition<CompositionShare>>();
     let rec = scenario.take_shared<Recording<RecordingShare>>();
@@ -70,7 +69,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let recording_id = object::id(&rec);
     let composition_id = object::id(&comp);
     let predicted_release_id = registry.derive_address(vector[recording_id], SALT).to_id();
-    let t = track::consent(&rec, &rec_cap, predicted_release_id);
+    let t = release::consent(&rec, &rec_cap, predicted_release_id);
     test_scenario::return_shared(comp);
     test_scenario::return_shared(rec);
     test_scenario::return_shared(registry);
@@ -141,7 +140,7 @@ fun new_aborts_when_consent_targets_a_different_release() {
     // Track consented to the release that salt 1 would produce...
     let registry = scenario.take_shared<ReleaseRegistry>();
     let wrong_release_id = registry.derive_address(vector[object::id(&rec)], test_helpers::salt(1)).to_id();
-    let t = track::consent(&rec, &rec_cap, wrong_release_id);
+    let t = release::consent(&rec, &rec_cap, wrong_release_id);
     test_scenario::return_shared(registry);
 
     scenario.next_tx(SONGWRITER);

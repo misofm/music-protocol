@@ -8,7 +8,6 @@ use std::unit_test::{assert_eq, destroy};
 use sui::event;
 use musicos::release;
 use musicos::test_helpers;
-use musicos::track;
 
 /// Publishing a 255-track release emits one `ReleaseTrackAssignedEvent` per
 /// position, in order, including duplicate recording IDs, followed by a single `ReleasePublishedEvent`.
@@ -23,7 +22,7 @@ fun test_release_track_events_at_255_tracks() {
 
     let salt = test_helpers::salt(7);
     let predicted_release_id = registry.derive_address(recording_ids, salt).to_id();
-    let tracks = vector::tabulate!(255, |index| track::consent_for_testing(
+    let tracks = vector::tabulate!(255, |index| release::consent_for_testing(
         recording_ids[index],
         predicted_release_id,
     ));

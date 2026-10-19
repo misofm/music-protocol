@@ -11,7 +11,7 @@
 /// The release id is derived under the canonical `ReleaseRegistry` from
 /// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`: the stored tracklist itself
 /// and the creator's random salt, shared off-chain with the consenting
-/// recording admins. A `TrackConsent` commits to that id at creation,
+/// recording admins. A `ReleaseConsent` commits to that id at creation,
 /// consenting to exactly the release's membership and order and nothing else.
 ///
 /// The id also commits to the registry's UID, so every pending consent depends
@@ -26,7 +26,7 @@ use sui::bcs::to_bytes;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use sui::hash::blake2b256;
-use musicos::track::TrackConsent;
+use musicos::recording::{Recording, RecordingAdminCap};
 
 // === Errors ===
 
@@ -83,6 +83,20 @@ public struct ReleaseAdminCap has key, store {
 /// Derivation key for `ReleaseAdminCap`.
 public struct ReleaseAdminCapKey() has copy, drop, store;
 
+/// Recording-admin consent to include a recording in one specific release.
+/// Extensions may wrap consent for offers or escrow before release creation.
+public struct ReleaseConsent has drop, store {
+    /// The exact release identity authorized by the recording admin.
+    release_id: ID,
+    /// The recording committed to by this consent.
+    recording_id: ID,
+}
+
+// === Method Aliases ===
+
+public use fun consent_release_id as ReleaseConsent.release_id;
+public use fun consent_recording_id as ReleaseConsent.recording_id;
+
 // === Enums ===
 
 /// Lifecycle state of a release.
@@ -127,6 +141,17 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(ReleaseRegistry { id: object::new(ctx) });
 }
 
+/// Consents to including the recording in a release, authorized by the
+/// recording's admin cap. Consent may be discarded or stored by an
+/// extension; `new` consumes it without retaining its release ID.
+public fun consent<RecordingShare>(
+    recording: &Recording<RecordingShare>,
+    _: &RecordingAdminCap<RecordingShare>,
+    release_id: ID,
+): ReleaseConsent {
+    ReleaseConsent { release_id, recording_id: object::id(recording) }
+}
+
 /// Assembles a release under the canonical registry. Permissionless: consent
 /// comes from recording-admin consents for this exact derived ID. Returns
 /// the release and admin cap by value so `publish` can follow in the same
@@ -135,14 +160,14 @@ fun init(ctx: &mut TxContext) {
 /// the derived release ID; its release ID is discarded when unwrapped.
 public fun new(
     self: &mut ReleaseRegistry,
-    consents: vector<TrackConsent>,
+    consents: vector<ReleaseConsent>,
     salt: vector<u8>,
 ): (Release, ReleaseAdminCap) {
     assert!(!consents.is_empty(), ENoTracks);
 
     let mut consented_release_ids = vector[];
     let recording_ids = consents.map!(|consent| {
-        let (release_id, recording_id) = consent.into_parts();
+        let ReleaseConsent { release_id, recording_id } = consent;
         consented_release_ids.push_back(release_id);
         recording_id
     });
@@ -200,6 +225,16 @@ public fun derive_address(
     salt: vector<u8>,
 ): address {
     derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&recording_ids, &salt)))
+}
+
+/// The release authorized by a consent.
+public fun consent_release_id(consent: &ReleaseConsent): ID {
+    consent.release_id
+}
+
+/// The recording committed to by a consent.
+public fun consent_recording_id(consent: &ReleaseConsent): ID {
+    consent.recording_id
 }
 
 /// The ordered tracklist of recording IDs.
@@ -295,15 +330,20 @@ public fun published_state_bcs_bytes(): vector<u8> {
 }
 
 #[test_only]
+public fun consent_for_testing(recording_id: ID, release_id: ID): ReleaseConsent {
+    ReleaseConsent { release_id, recording_id }
+}
+
+#[test_only]
 public fun new_for_testing(
-    consents: vector<TrackConsent>,
+    consents: vector<ReleaseConsent>,
     ctx: &mut TxContext,
 ): (Release, ReleaseAdminCap) {
     // Test consents may target any release; only their recordings are kept.
     let mut release = Release {
         id: object::new(ctx),
         state: ReleaseState::Initialized { salt: vector::tabulate!(SALT_LENGTH, |_| 0) },
-        recording_ids: consents.map!(|consent| { let (_, recording_id) = consent.into_parts(); recording_id }),
+        recording_ids: consents.map!(|consent| { let ReleaseConsent { release_id: _, recording_id } = consent; recording_id }),
     };
     let release_id = object::id(&release);
 

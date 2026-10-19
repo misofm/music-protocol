@@ -16,7 +16,6 @@ use musicos::composition::{Self, Composition, CompositionPublishedEvent};
 use musicos::recording::{Self, Recording, RecordingPublishedEvent};
 use musicos::release::{Self, Release, ReleasePublishedEvent};
 use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
-use musicos::track;
 
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
@@ -80,7 +79,7 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
     let (rel, cap) = release::new_for_testing(
-        vector[track::consent_for_testing(recording_id, test_helpers::fake_id(ctx))],
+        vector[release::consent_for_testing(recording_id, test_helpers::fake_id(ctx))],
         ctx,
     );
     let rel_id = object::id(&rel);

@@ -13,7 +13,7 @@ Core defines compositions, recordings, and releases. Every composition and recor
 | `Composition<CompositionShare>` | Identity and lifecycle; its share coin is the type parameter |
 | `Recording<RecordingShare>` | Identity, lifecycle, and immutable composition ID |
 | `Release` | Identity, lifecycle, and ordered recording IDs |
-| `TrackConsent` | Authorized release ID and recording ID; consumed during release creation |
+| `ReleaseConsent` | Authorized release ID and recording ID; consumed during release creation |
 
 Anyone can create a recording referencing an existing composition. The reference establishes a relationship; it does not establish a license or impose a commission.
 
@@ -108,17 +108,17 @@ encoding. Anyone can recompute a release's ID from its stored recording IDs and 
 salt in `ReleasePublishedEvent`, and `release::derive_address` predicts it before
 creation. A recording may appear more than once.
 
-A recording admin calls `track::consent(&recording, &cap, release_id)`. It returns a
-store-only `TrackConsent`, which extensions can wrap for offers or escrow. Its
+A recording admin calls `release::consent(&recording, &cap, release_id)`. It returns
+a store-only `ReleaseConsent`, which extensions can wrap for offers or escrow. Its
 getters expose `release_id()` and `recording_id()`.
 
-`release::new` accepts `vector<TrackConsent>`, derives the release ID from the
+`release::new` accepts `vector<ReleaseConsent>`, derives the release ID from the
 consented recording IDs and salt, and validates and consumes every consent. It
-stores only the recording IDs; consent release IDs are discarded. Unwrapping is
-package-private, and `TrackConsent` has no `copy`.
+stores only the recording IDs; consent release IDs are discarded. Only `release::new` can
+unpack a consent, and `ReleaseConsent` has no `copy`.
 
 ```move
-let consent = track::consent(&recording, &recording_cap, release_id);
+let consent = release::consent(&recording, &recording_cap, release_id);
 let (release, release_cap) = release::new(&mut registry, vector[consent], salt);
 release.publish(&release_cap);
 ```
@@ -153,8 +153,8 @@ The package follows Sui's [Move best practices](https://docs.sui.io/develop/writ
 constructors return values, publication is separate, capabilities are object-bound,
 consents are consumed by value, and tests live outside production sources.
 
-`TrackConsent` lives in its own module to keep consent construction and unwrapping
-encapsulated. The registries are shared only by package initialization to
+`ReleaseConsent` lives in the release module, so only `release::new` can unpack it.
+The registries are shared only by package initialization to
 preserve their single namespaces. Commit publication metadata when this source is deployed.
 
 ## Dependencies

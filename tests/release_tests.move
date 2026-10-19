@@ -1,4 +1,4 @@
-/// `release::new` validation and `track::consent` boundary checks. None touch
+/// `release::new` validation and `release::consent` boundary checks. None touch
 /// object ownership; publish and wrong-cap flows live in `post_publish_tests`
 /// and `release_e2e_tests`.
 #[test_only]
@@ -10,11 +10,10 @@ use musicos::composition;
 use musicos::recording;
 use musicos::release;
 use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
-use musicos::track;
 
 /// Helper to create an ordered tracklist of n tracks.
-fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<track::TrackConsent> {
-    vector::tabulate!(track_count, |_index| track::consent_for_testing(
+fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::ReleaseConsent> {
+    vector::tabulate!(track_count, |_index| release::consent_for_testing(
         test_helpers::fake_id(ctx),
         test_helpers::fake_id(ctx),
     ))
@@ -63,12 +62,12 @@ fun duplicate_digest_aborts() {
     let rel_id = registry.derive_address(vector[rec_id], test_helpers::salt(7)).to_id();
 
     let (rel1, cap1) = registry.new(
-        vector[track::consent_for_testing(rec_id, rel_id)],
+        vector[release::consent_for_testing(rec_id, rel_id)],
         test_helpers::salt(7),
     );
     // Identical recording ids and salt: identical digest.
     let (rel2, cap2) = registry.new(
-        vector[track::consent_for_testing(rec_id, rel_id)],
+        vector[release::consent_for_testing(rec_id, rel_id)],
         test_helpers::salt(7),
     );
     destroy(rel1);
@@ -98,22 +97,22 @@ fun release_views_reflect_initialized_release() {
     destroy(cap);
 }
 
-// === track::consent ===
+// === release::consent ===
 
-/// `track::consent` carries the target release id it was called with and
+/// `release::consent` carries the target release id it was called with and
 /// reads the recording id off the `&Recording` argument.
 #[test]
-fun track_new_records_consent() {
+fun consent_records_release_and_recording() {
     let ctx = &mut tx_context::dummy();
     let (comp, comp_cap, rec, rec_cap) = composition_and_recording(ctx);
     let target_release_id = test_helpers::fake_id(ctx);
 
-    let t = track::consent(&rec, &rec_cap, target_release_id);
+    let consent = release::consent(&rec, &rec_cap, target_release_id);
 
-    assert_eq!(t.recording_id(), object::id(&rec));
-    assert_eq!(t.release_id(), target_release_id);
+    assert_eq!(consent.recording_id(), object::id(&rec));
+    assert_eq!(consent.release_id(), target_release_id);
 
-    destroy(t);
+    destroy(consent);
     destroy(comp);
     destroy(comp_cap);
     destroy(rec);
