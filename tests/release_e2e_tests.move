@@ -69,12 +69,8 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let registry = scenario.take_shared<ReleaseRegistry>();
     let recording_id = object::id(&rec);
     let composition_id = object::id(&comp);
-    let predicted_release_id = registry.derive_address(
-        vector[recording_id],
-        vector[10000u16],
-        SALT,
-    ).to_id();
-    let t = track::consent(&rec, &rec_cap, predicted_release_id, 10000);
+    let predicted_release_id = registry.derive_address(vector[recording_id], SALT).to_id();
+    let t = track::consent(&rec, &rec_cap, predicted_release_id);
     test_scenario::return_shared(comp);
     test_scenario::return_shared(rec);
     test_scenario::return_shared(registry);
@@ -97,26 +93,18 @@ fun full_track_release_flow_publishes_at_derived_id() {
     assert_eq!(event_salt, SALT);
     let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
     assert_eq!(track_events.length(), 1);
-    let (track_release_id, position, event_recording, event_split) =
+    let (track_release_id, position, event_recording) =
         release::release_track_assigned_event_fields(track_events[0]);
     assert_eq!(track_release_id, event_release_id);
     assert_eq!(position, 0);
     assert_eq!(event_recording, recording_id);
-    assert_eq!(event_split, 10000);
     // The track event carries no composition id: joining its recording id to
     // that recording's `RecordingPublishedEvent` yields it.
     assert_eq!(event_recording, rec_event_recording_id);
     assert_eq!(rec_event_composition_id, composition_id);
-    // Re-deriving the release id from the track events' recordings and splits
-    // and the release event's salt reproduces `release_id`.
-    assert_eq!(
-        registry.derive_address(
-            vector[event_recording],
-            vector[event_split],
-            event_salt,
-        ).to_id(),
-        event_release_id,
-    );
+    // Re-deriving the release id from the track events' recordings and the
+    // release event's salt reproduces `release_id`.
+    assert_eq!(registry.derive_address(vector[event_recording], event_salt).to_id(), event_release_id);
 
     destroy(rel_cap);
     test_scenario::return_shared(registry);
@@ -126,11 +114,7 @@ fun full_track_release_flow_publishes_at_derived_id() {
     let rel = scenario.take_shared<Release>();
     assert!(rel.is_published_state());
     assert_eq!(object::id(&rel), predicted_release_id);
-    assert_eq!(rel.tracks().length(), 1);
-    assert!(rel.tracks().any!(|track| track.recording_id() == recording_id));
-    let track_ref = &rel.tracks()[0];
-    assert_eq!(track_ref.recording_id(), recording_id);
-    assert_eq!(track_ref.split_bps().value(), 10000);
+    assert_eq!(*rel.recording_ids(), vector[recording_id]);
     test_scenario::return_shared(rel);
 
     destroy(rec_cap);
@@ -156,12 +140,8 @@ fun new_aborts_when_consent_targets_a_different_release() {
     scenario.next_tx(SONGWRITER);
     // Track consented to the release that salt 1 would produce...
     let registry = scenario.take_shared<ReleaseRegistry>();
-    let wrong_release_id = registry.derive_address(
-        vector[object::id(&rec)],
-        vector[10000u16],
-        test_helpers::salt(1),
-    ).to_id();
-    let t = track::consent(&rec, &rec_cap, wrong_release_id, 10000);
+    let wrong_release_id = registry.derive_address(vector[object::id(&rec)], test_helpers::salt(1)).to_id();
+    let t = track::consent(&rec, &rec_cap, wrong_release_id);
     test_scenario::return_shared(registry);
 
     scenario.next_tx(SONGWRITER);

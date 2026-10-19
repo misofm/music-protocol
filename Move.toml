@@ -5,7 +5,6 @@ license = "Apache 2.0"
 authors = ["Miso Labs, Inc. (build@miso.fm)"]
 
 [dependencies]
-bps = { git = "https://github.com/unconfirmedlabs/bps.git", rev = "4ca1972a67d35c972ca567de7b08315e3778e52b" }
 share = { git = "https://github.com/unconfirmedlabs/share.git", rev = "ff09199aa5a82693660c44c59cfd32636f0c2d98" }
 
 composition_share = { local = "templates/composition_share", modes = ["test"] }

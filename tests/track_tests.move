@@ -5,23 +5,18 @@
 module musicos::track_tests;
 
 use std::unit_test::assert_eq;
-use sui::bcs;
 use musicos::test_helpers;
 use musicos::track;
 
 #[test]
-fun consent_unwraps_to_minimal_track() {
+fun consent_unwraps_to_release_and_recording() {
     let ctx = &mut tx_context::dummy();
     let recording_id = test_helpers::fake_id(ctx);
     let release_id = test_helpers::fake_id(ctx);
-    let consent = track::consent_for_testing(recording_id, release_id, 5000);
+    let consent = track::consent_for_testing(recording_id, release_id);
     assert_eq!(consent.release_id(), release_id);
-    assert_eq!(consent.track().recording_id(), recording_id);
-    let (consented_release_id, track) = consent.into_parts();
+    assert_eq!(consent.recording_id(), recording_id);
+    let (consented_release_id, consented_recording_id) = consent.into_parts();
     assert_eq!(consented_release_id, release_id);
-    assert_eq!(track.recording_id(), recording_id);
-    assert_eq!(track.split_bps().value(), 5000);
-    let mut expected = bcs::to_bytes(&recording_id);
-    expected.append(bcs::to_bytes(&5000u16));
-    assert_eq!(bcs::to_bytes(&track), expected);
+    assert_eq!(consented_recording_id, recording_id);
 }

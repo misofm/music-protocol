@@ -80,11 +80,7 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
     let (rel, cap) = release::new_for_testing(
-        vector[track::consent_for_testing(
-            recording_id,
-            test_helpers::fake_id(ctx),
-            10000,
-        )],
+        vector[track::consent_for_testing(recording_id, test_helpers::fake_id(ctx))],
         ctx,
     );
     let rel_id = object::id(&rel);
@@ -98,12 +94,11 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     assert_eq!(event_rel_id, rel_id);
     assert_eq!(salt, test_helpers::salt(0));
     let mut track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
-    let (track_rel_id, position, event_recording, event_split) =
+    let (track_rel_id, position, event_recording) =
         release::release_track_assigned_event_fields(track_events.pop_back());
     assert_eq!(track_rel_id, rel_id);
     assert_eq!(position, 0);
     assert_eq!(event_recording, recording_id);
-    assert_eq!(event_split, 10000);
 
     (cap, rel_id)
 }

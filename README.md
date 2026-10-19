@@ -4,7 +4,7 @@
 
 A permissionless music identity and release-consent protocol on Sui, written in Move.
 
-Core defines compositions, recordings, releases, and tracks. Every composition and recording has one canonical share coin: a fixed supply of 100M shares covering all of the work's rights. Composition commission rates, allocations, and royalty accounting belong in extensions.
+Core defines compositions, recordings, and releases. Every composition and recording has one canonical share coin: a fixed supply of 100M shares covering all of the work's rights. Composition commission rates, release revenue splits, allocations, and royalty accounting belong in extensions.
 
 ## Data model
 
@@ -12,9 +12,8 @@ Core defines compositions, recordings, releases, and tracks. Every composition a
 |---|---|
 | `Composition<CompositionShare>` | Identity and lifecycle; its share coin is the type parameter |
 | `Recording<RecordingShare>` | Identity, lifecycle, and immutable composition ID |
-| `Release` | Identity, lifecycle, and ordered tracks |
-| `Track` | Recording ID and release revenue split |
-| `TrackConsent` | Authorized release ID and nested track; consumed during release creation |
+| `Release` | Identity, lifecycle, and ordered recording IDs |
+| `TrackConsent` | Authorized release ID and recording ID; consumed during release creation |
 
 Anyone can create a recording referencing an existing composition. The reference establishes a relationship; it does not establish a license or impose a commission.
 
@@ -100,34 +99,35 @@ surface; extension immutability and authorization must be designed explicitly.
 
 ## Release consent
 
-Release revenue splits remain part of core consent. A release's ID is derived under
-the shared `ReleaseRegistry` from `blake2b256(bcs(tracks) ‖ bcs(salt))`, where
-`tracks` is the stored `vector<Track>` (each a 32-byte recording ID and a `u16`
-split) and `salt` is 32 random bytes the creator shares off-chain with the recording
-admins whose consent it collects. `bcs(salt)` is the length byte `0x20` and the 32
-bytes, so the salt is hashed exactly as shared, with no integer encoding. Anyone can recompute a release's ID from
-its stored tracks and the salt in `ReleasePublishedEvent`, and
-`release::derive_address` predicts it before creation. Splits must total 10,000
-basis points.
+A release's ID is derived under the shared `ReleaseRegistry` from
+`blake2b256(bcs(recording_ids) ‖ bcs(salt))`, where `recording_ids` is the stored
+ordered `vector<ID>` and `salt` is 32 random bytes the creator shares off-chain with
+the recording admins whose consent it collects. `bcs(salt)` is the length byte
+`0x20` and the 32 bytes, so the salt is hashed exactly as shared, with no integer
+encoding. Anyone can recompute a release's ID from its stored recording IDs and the
+salt in `ReleasePublishedEvent`, and `release::derive_address` predicts it before
+creation. A recording may appear more than once.
 
-A recording admin calls `track::consent(&recording, &cap, release_id, split_bps)`.
-It returns a store-only `TrackConsent`, which extensions can wrap for offers or
-escrow. Its getters expose `release_id()` and read-only `track()` access.
+A recording admin calls `track::consent(&recording, &cap, release_id)`. It returns a
+store-only `TrackConsent`, which extensions can wrap for offers or escrow. Its
+getters expose `release_id()` and `recording_id()`.
 
 `release::new` accepts `vector<TrackConsent>`, derives the release ID from the
-nested tracks and salt, and validates and consumes every consent. It stores only
-`vector<Track>`; consent release IDs are discarded. Unwrapping is package-private,
-and neither type has `copy`. There is no public constructor for a bare track.
+consented recording IDs and salt, and validates and consumes every consent. It
+stores only the recording IDs; consent release IDs are discarded. Unwrapping is
+package-private, and `TrackConsent` has no `copy`.
 
 ```move
-let consent = track::consent(&recording, &recording_cap, release_id, 10000);
+let consent = track::consent(&recording, &recording_cap, release_id);
 let (release, release_cap) = release::new(&mut registry, vector[consent], salt);
 release.publish(&release_cap);
 ```
 
-Consent binds membership, ordering, and release splits. Names, artwork, and other
-extension data are outside that commitment. Publication emits the track events;
-it does not repeat consent validation.
+Consent binds membership and ordering. Revenue splits, names, artwork, and other
+extension data are outside that commitment. Streaming revenue is credited to each
+recording by plays; a channel that sells the release as a whole, such as a
+pressing, defines and collects consent for its own track split. Publication emits
+the track events; it does not repeat consent validation.
 
 The registry is created once during package initialization. Release creation is
 permissionless, but requires the recording-admin-authorized consents.
@@ -142,7 +142,7 @@ extension access remains available afterward.
 |---|---|
 | `CompositionPublishedEvent<CompositionShare>` | Composition ID |
 | `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
-| `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID, split BPS |
+| `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID |
 | `ReleasePublishedEvent` | Release ID and creator salt |
 
 Track events are emitted in tracklist order. Transaction metadata supplies sender and time.
@@ -153,13 +153,12 @@ The package follows Sui's [Move best practices](https://docs.sui.io/develop/writ
 constructors return values, publication is separate, capabilities are object-bound,
 consents are consumed by value, and tests live outside production sources.
 
-Track and TrackConsent share a module to keep consent construction and unwrapping
+`TrackConsent` lives in its own module to keep consent construction and unwrapping
 encapsulated. The registries are shared only by package initialization to
 preserve their single namespaces. Commit publication metadata when this source is deployed.
 
 ## Dependencies
 
-- [bps](https://github.com/unconfirmedlabs/bps): release track splits.
 - [share](https://github.com/unconfirmedlabs/share): `share::mint` checks a work's
   currency against the canonical metadata and fixes its supply.
 
@@ -174,7 +173,7 @@ sui move test
 ```
 
 Tests cover the template-to-publish flow, every share currency check, extension access
-after publication, lifecycle events, release derivation, consent, and split validation.
+after publication, lifecycle events, release derivation, and consent.
 
 ## License
 

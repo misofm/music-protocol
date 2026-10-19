@@ -1,4 +1,4 @@
-/// Structural stress test: a 255-track release with exact-100% splits builds
+/// Structural stress test: a 255-track release builds
 /// and publishes through the registry. Core imposes no track limit of its
 /// own; the ceiling is Sui's object, event and gas limits.
 #[test_only]
@@ -11,8 +11,7 @@ use musicos::test_helpers;
 use musicos::track;
 
 /// Publishing a 255-track release emits one `ReleaseTrackAssignedEvent` per
-/// position, in order, including duplicate recording IDs and zero-valued
-/// splits, followed by a single `ReleasePublishedEvent`.
+/// position, in order, including duplicate recording IDs, followed by a single `ReleasePublishedEvent`.
 #[test]
 fun test_release_track_events_at_255_tracks() {
     let ctx = &mut tx_context::dummy();
@@ -21,20 +20,12 @@ fun test_release_track_events_at_255_tracks() {
     let recording_ids = vector::tabulate!(255, |index| {
         if (index == 254) base_recording_ids[0] else base_recording_ids[index]
     });
-    let track_split_bps = vector::tabulate!(255, |index| {
-        if (index == 0) 0 else if (index == 254) 79 else if (index < 55) 40 else 39
-    });
 
     let salt = test_helpers::salt(7);
-    let predicted_release_id = registry.derive_address(
-        recording_ids,
-        track_split_bps,
-        salt,
-    ).to_id();
+    let predicted_release_id = registry.derive_address(recording_ids, salt).to_id();
     let tracks = vector::tabulate!(255, |index| track::consent_for_testing(
         recording_ids[index],
         predicted_release_id,
-        track_split_bps[index],
     ));
     let (rel, rel_cap) = registry.new(tracks, salt);
 
@@ -52,12 +43,11 @@ fun test_release_track_events_at_255_tracks() {
     let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
     assert_eq!(track_events.length(), 255);
     255u64.do!(|index| {
-        let (release_id, position, recording_id, split_bps) =
+        let (release_id, position, recording_id) =
             release::release_track_assigned_event_fields(track_events[index]);
         assert_eq!(release_id, predicted_release_id);
         assert_eq!(position, index);
         assert_eq!(recording_id, recording_ids[index]);
-        assert_eq!(split_bps, track_split_bps[index]);
     });
 
     destroy(registry);
