@@ -3,7 +3,7 @@
 
 /// The share coin type for one composition. Publish an unchanged copy of this
 /// package per work: publishing sends a one-time ticket to the publisher,
-/// `create` registers the currency with the canonical metadata, and
+/// `initialize_currency` registers the currency with the canonical metadata, and
 /// `musicos::composition::new` then consumes the treasury cap.
 module composition_share::composition_share;
 
@@ -19,27 +19,27 @@ public struct CompositionShare has key {
     id: UID,
 }
 
-/// Authorizes the single `create` call.
-public struct CreateTicket has key {
+/// Authorizes the single `initialize_currency` call.
+public struct InitializeCurrencyTicket has key {
     id: UID,
 }
 
 // === Initializer ===
 
 fun init(ctx: &mut TxContext) {
-    transfer::transfer(CreateTicket { id: object::new(ctx) }, ctx.sender());
+    transfer::transfer(InitializeCurrencyTicket { id: object::new(ctx) }, ctx.sender());
 }
 
 // === Public Functions ===
 
 /// Registers the currency with locked canonical metadata and returns its
 /// treasury cap. Supply stays zero until `musicos::composition::new`.
-public fun create(
-    ticket: CreateTicket,
+public fun initialize_currency(
+    ticket: InitializeCurrencyTicket,
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,
 ): TreasuryCap<CompositionShare> {
-    let CreateTicket { id } = ticket;
+    let InitializeCurrencyTicket { id } = ticket;
     id.delete();
     let (initializer, treasury_cap) = coin_registry::new_currency<CompositionShare>(
         registry,

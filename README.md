@@ -25,8 +25,8 @@ Each work's share coin comes from its own copy of a template package in
 `recording_share::RecordingShare`. Publish the template's bytecode unchanged; only
 the package address differs between works.
 
-1. Publish the template. `init` sends the publisher a one-time `CreateTicket`.
-2. `create(ticket, &mut CoinRegistry)` registers the currency, deletes its
+1. Publish the template. `init` sends the publisher a one-time `InitializeCurrencyTicket`.
+2. `initialize_currency(ticket, &mut CoinRegistry)` registers the currency, deletes its
    metadata cap and returns the `TreasuryCap`.
 3. In a later transaction, `composition::new` (or `recording::new`) consumes the
    treasury cap, mints the full supply to the caller and fixes it.

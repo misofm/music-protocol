@@ -10,8 +10,8 @@ use sui::coin_registry::{Self, CoinRegistry, Currency};
 use sui::event;
 use sui::test_scenario;
 use share::share;
-use composition_share::composition_share::{Self as composition_template, CompositionShare, CreateTicket as CompositionTicket};
-use recording_share::recording_share::{Self as recording_template, RecordingShare, CreateTicket as RecordingTicket};
+use composition_share::composition_share::{Self as composition_template, CompositionShare, InitializeCurrencyTicket as CompositionTicket};
+use recording_share::recording_share::{Self as recording_template, RecordingShare, InitializeCurrencyTicket as RecordingTicket};
 use musicos::composition::{Self, Composition, CompositionAdminCap, CompositionPublishedEvent, CompositionRegistry};
 use musicos::composition_share as fixture;
 use musicos::recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent, RecordingRegistry};
@@ -23,7 +23,7 @@ const ARTIST: address = @0xA2;
 
 // === Template flow ===
 
-/// Publish (init ticket), `create`, then `new` + `publish` in a later
+/// Publish (init ticket), `initialize_currency`, then `new` + `publish` in a later
 /// transaction, for a composition and a recording of it.
 #[test]
 fun templates_create_composition_and_recording() {
@@ -32,13 +32,13 @@ fun templates_create_composition_and_recording() {
     composition::init_for_testing(scenario.ctx());
     recording::init_for_testing(scenario.ctx());
 
-    // Tx 1 (SONGWRITER): publish the template, then create the currency.
+    // Tx 1 (SONGWRITER): publish the template, then initialize the currency.
     scenario.next_tx(SONGWRITER);
     composition_template::init_for_testing(scenario.ctx());
     scenario.next_tx(SONGWRITER);
     let ticket = scenario.take_from_sender<CompositionTicket>();
     let mut registry = scenario.take_shared<CoinRegistry>();
-    let treasury_cap = ticket.create(&mut registry, scenario.ctx());
+    let treasury_cap = ticket.initialize_currency(&mut registry, scenario.ctx());
     test_scenario::return_shared(registry);
 
     // Tx 2 (SONGWRITER): create and publish the composition.
@@ -65,7 +65,7 @@ fun templates_create_composition_and_recording() {
     scenario.next_tx(ARTIST);
     let ticket = scenario.take_from_sender<RecordingTicket>();
     let mut registry = scenario.take_shared<CoinRegistry>();
-    let treasury_cap = ticket.create(&mut registry, scenario.ctx());
+    let treasury_cap = ticket.initialize_currency(&mut registry, scenario.ctx());
     test_scenario::return_shared(registry);
 
     scenario.next_tx(ARTIST);
