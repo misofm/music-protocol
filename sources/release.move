@@ -269,16 +269,12 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 
 // === Private Functions ===
 
-/// Aborts with `EDuplicateRecording` if a recording ID repeats. Sorts a copy,
-/// so the cost grows as n log n rather than n².
+/// Aborts with `EDuplicateRecording` if a recording ID repeats: a sorted copy
+/// is strictly increasing exactly when every ID is distinct.
 fun assert_distinct(recording_ids: &vector<ID>) {
     let mut keys = recording_ids.map_ref!(|id| id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);
-    let mut i = 1;
-    while (i < keys.length()) {
-        assert!(keys[i - 1] != keys[i], EDuplicateRecording);
-        i = i + 1;
-    };
+    assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
 }
 
 /// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`, the key of the release's
