@@ -97,7 +97,9 @@ public fun new<CompositionShare: key>(
     currency: &mut Currency<CompositionShare>,
     treasury_cap: TreasuryCap<CompositionShare>,
 ): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>, Balance<CompositionShare>) {
-    let spec = share::spec(
+    let shares = share::mint(
+        currency,
+        treasury_cap,
         SHARE_MODULE,
         SHARE_DATATYPE,
         SHARE_DECIMALS,
@@ -107,7 +109,6 @@ public fun new<CompositionShare: key>(
         b"".to_string(),
         SHARE_SUPPLY,
     );
-    let shares = share::mint(currency, treasury_cap, &spec);
     let (composition, cap) = new_internal!<CompositionShare>(claim(&mut registry.id, CompositionKey<CompositionShare>()));
     (composition, cap, shares)
 }

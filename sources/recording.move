@@ -102,7 +102,9 @@ public fun new<RecordingShare: key, CompositionShare>(
     currency: &mut Currency<RecordingShare>,
     treasury_cap: TreasuryCap<RecordingShare>,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
-    let spec = share::spec(
+    let shares = share::mint(
+        currency,
+        treasury_cap,
         SHARE_MODULE,
         SHARE_DATATYPE,
         SHARE_DECIMALS,
@@ -112,7 +114,6 @@ public fun new<RecordingShare: key, CompositionShare>(
         b"".to_string(),
         SHARE_SUPPLY,
     );
-    let shares = share::mint(currency, treasury_cap, &spec);
     let (recording, cap) = new_internal!<RecordingShare>(
         claim(&mut registry.id, RecordingKey<RecordingShare>()),
         object::id(composition),
