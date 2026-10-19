@@ -19,8 +19,9 @@ public struct CompositionShare has key {
     id: UID,
 }
 
-/// Authorizes the single `initialize_currency` call.
-public struct InitializeCurrencyTicket has key {
+/// Authorizes the single `initialize_currency` call. Transferable, so
+/// uninitialized packages can be handed off.
+public struct InitializeCurrencyTicket has key, store {
     id: UID,
 }
 
