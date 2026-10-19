@@ -48,6 +48,12 @@ public struct Composition<phantom CompositionShare> has key {
     state: CompositionState,
 }
 
+/// Authorizes admin operations on the one composition of its share type.
+/// Its address is derived from the composition under `CompositionAdminCapKey`.
+public struct CompositionAdminCap<phantom CompositionShare> has key, store {
+    id: UID,
+}
+
 /// The derivation parent of every composition, created once at package
 /// initialization with no other constructor or mutable UID accessor.
 public struct CompositionRegistry has key {
@@ -56,12 +62,6 @@ public struct CompositionRegistry has key {
 
 /// Derivation key for the composition of a share type.
 public struct CompositionKey<phantom CompositionShare>() has copy, drop, store;
-
-/// Authorizes admin operations on the one composition of its share type.
-/// Its address is derived from the composition under `CompositionAdminCapKey`.
-public struct CompositionAdminCap<phantom CompositionShare> has key, store {
-    id: UID,
-}
 
 /// Derivation key for `CompositionAdminCap`.
 public struct CompositionAdminCapKey() has copy, drop, store;

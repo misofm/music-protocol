@@ -64,15 +64,6 @@ public struct Release has key {
     recording_ids: vector<ID>,
 }
 
-/// The canonical derivation parent for every release. Its private UID is
-/// reachable only by `new`, so the namespace cannot be bypassed.
-public struct ReleaseRegistry has key {
-    id: UID,
-}
-
-/// Key for release UID derivation.
-public struct ReleaseKey(vector<u8>) has copy, drop, store;
-
 /// Authorizes admin operations on one release.
 public struct ReleaseAdminCap has key, store {
     id: UID,
@@ -80,8 +71,11 @@ public struct ReleaseAdminCap has key, store {
     release_id: ID,
 }
 
-/// Derivation key for `ReleaseAdminCap`.
-public struct ReleaseAdminCapKey() has copy, drop, store;
+/// The canonical derivation parent for every release. Its private UID is
+/// reachable only by `new`, so the namespace cannot be bypassed.
+public struct ReleaseRegistry has key {
+    id: UID,
+}
 
 /// Recording-admin consent to include a recording in one specific release.
 /// Extensions may wrap consent for offers or escrow before release creation.
@@ -92,10 +86,11 @@ public struct ReleaseConsent has drop, store {
     recording_id: ID,
 }
 
-// === Method Aliases ===
+/// Key for release UID derivation.
+public struct ReleaseKey(vector<u8>) has copy, drop, store;
 
-public use fun consent_release_id as ReleaseConsent.release_id;
-public use fun consent_recording_id as ReleaseConsent.recording_id;
+/// Derivation key for `ReleaseAdminCap`.
+public struct ReleaseAdminCapKey() has copy, drop, store;
 
 // === Enums ===
 
@@ -114,8 +109,9 @@ public enum ReleaseState has drop, store {
 
 /// Emitted once per track when a release is published, in tracklist order and
 /// before the `ReleasePublishedEvent`. Together the track events are the
-/// release's full tracklist, duplicates included. The track's composition is not repeated: join `recording_id` to that
-/// recording's `RecordingPublishedEvent`.
+/// release's full tracklist, duplicates included. The track's composition
+/// is not repeated: join `recording_id` to that recording's
+/// `RecordingPublishedEvent`.
 public struct ReleaseTrackAssignedEvent has copy, drop {
     release_id: ID,
     /// Zero-based position of the track in the tracklist.
@@ -132,6 +128,11 @@ public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
     salt: vector<u8>,
 }
+
+// === Method Aliases ===
+
+public use fun consent_release_id as ReleaseConsent.release_id;
+public use fun consent_recording_id as ReleaseConsent.recording_id;
 
 // === Public Functions ===
 

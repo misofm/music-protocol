@@ -51,6 +51,12 @@ public struct Recording<phantom RecordingShare> has key {
     composition_id: ID,
 }
 
+/// Authorizes admin operations on the one recording of its share type.
+/// Its address is derived from the recording under `RecordingAdminCapKey`.
+public struct RecordingAdminCap<phantom RecordingShare> has key, store {
+    id: UID,
+}
+
 /// The derivation parent of every recording, created once at package
 /// initialization with no other constructor or mutable UID accessor.
 public struct RecordingRegistry has key {
@@ -59,12 +65,6 @@ public struct RecordingRegistry has key {
 
 /// Derivation key for the recording of a share type.
 public struct RecordingKey<phantom RecordingShare>() has copy, drop, store;
-
-/// Authorizes admin operations on the one recording of its share type.
-/// Its address is derived from the recording under `RecordingAdminCapKey`.
-public struct RecordingAdminCap<phantom RecordingShare> has key, store {
-    id: UID,
-}
 
 /// Derivation key for `RecordingAdminCap`.
 public struct RecordingAdminCapKey() has copy, drop, store;

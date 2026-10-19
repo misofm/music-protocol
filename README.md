@@ -153,6 +153,11 @@ The package follows Sui's [Move best practices](https://docs.sui.io/develop/writ
 constructors return values, publication is separate, capabilities are object-bound,
 consents are consumed by value, and tests live outside production sources.
 
+Each module orders its sections as imports, errors, constants, structs, enums,
+events (in emission order), method aliases, then functions. Structs go main
+object, admin cap, registry, other value types, then derivation keys in the order
+of the objects they derive.
+
 `ReleaseConsent` lives in the release module, so only `release::new` can unpack it.
 The registries are shared only by package initialization to
 preserve their single namespaces. Commit publication metadata when this source is deployed.
