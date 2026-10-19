@@ -52,6 +52,36 @@ fun new_without_tracks_aborts() {
     destroy(registry);
 }
 
+#[test, expected_failure(abort_code = release::ETooManyTracks)]
+fun new_above_max_tracks_aborts() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = release::new_registry_for_testing(ctx);
+    let (rel, cap) = registry.new(test_tracks(release::max_tracks() + 1, ctx), test_helpers::salt(0));
+    destroy(rel);
+    destroy(cap);
+    destroy(registry);
+}
+
+/// A recording may fill only one slot, wherever the repeat falls.
+#[test, expected_failure(abort_code = release::EDuplicateRecording)]
+fun new_with_duplicate_recording_aborts() {
+    let ctx = &mut tx_context::dummy();
+    let mut registry = release::new_registry_for_testing(ctx);
+    let (a, b) = (test_helpers::fake_id(ctx), test_helpers::fake_id(ctx));
+    let release_id = registry.derive_address(vector[a, b, a], test_helpers::salt(0)).to_id();
+    let (rel, cap) = registry.new(
+        vector[
+            release::consent_for_testing(a, release_id),
+            release::consent_for_testing(b, release_id),
+            release::consent_for_testing(a, release_id),
+        ],
+        test_helpers::salt(0),
+    );
+    destroy(rel);
+    destroy(cap);
+    destroy(registry);
+}
+
 /// The same digest (recording ids + salt) can only ever be claimed
 /// once under the same canonical registry.
 #[test, expected_failure(abort_code = derived_object::EObjectAlreadyExists)]

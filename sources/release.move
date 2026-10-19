@@ -43,6 +43,10 @@ const ENotInitializedState: u64 = 10;
 // Validation errors (20-29)
 /// The salt is not exactly 32 bytes.
 const EInvalidSaltLength: u64 = 21;
+/// A recording appears more than once in the tracklist.
+const EDuplicateRecording: u64 = 22;
+/// The tracklist exceeds `MAX_TRACKS`.
+const ETooManyTracks: u64 = 23;
 
 // Reference errors (50-59)
 /// Release must contain at least one track.
@@ -51,6 +55,9 @@ const ENoTracks: u64 = 51;
 // === Constants ===
 
 const SALT_LENGTH: u64 = 32;
+/// Leaves headroom under Sui's 1,024 events per transaction for anything that
+/// emits an event per track, such as publication and revenue distribution.
+const MAX_TRACKS: u64 = 1_000;
 
 // === Structs ===
 
@@ -59,8 +66,8 @@ public struct Release has key {
     id: UID,
     /// Current lifecycle state.
     state: ReleaseState,
-    /// The ordered tracklist; the digest pre-image every track's recording
-    /// admin consented to. A recording may appear more than once.
+    /// The ordered tracklist of distinct recordings; the digest pre-image
+    /// every track's recording admin consented to.
     recording_ids: vector<ID>,
 }
 
@@ -109,7 +116,7 @@ public enum ReleaseState has drop, store {
 
 /// Emitted once per track when a release is published, in tracklist order and
 /// before the `ReleasePublishedEvent`. Together the track events are the
-/// release's full tracklist, duplicates included. The track's composition
+/// release's full tracklist. The track's composition
 /// is not repeated: join `recording_id` to that recording's
 /// `RecordingPublishedEvent`.
 public struct ReleaseTrackAssignedEvent has copy, drop {
@@ -156,8 +163,9 @@ public fun consent<RecordingShare>(
 /// Assembles a release under the canonical registry. Permissionless: consent
 /// comes from recording-admin consents for this exact derived ID. Returns
 /// the release and admin cap by value so `publish` can follow in the same
-/// PTB. Aborts with `ENoTracks` on an empty tracklist; claiming an
-/// already-claimed digest aborts in `derived_object`. Each consent must match
+/// PTB. Aborts with `ENoTracks` on an empty tracklist, `ETooManyTracks`
+/// above `MAX_TRACKS` and `EDuplicateRecording` if a recording repeats;
+/// claiming an already-claimed digest aborts in `derived_object`. Each consent must match
 /// the derived release ID; its release ID is discarded when unwrapped.
 public fun new(
     self: &mut ReleaseRegistry,
@@ -165,6 +173,7 @@ public fun new(
     salt: vector<u8>,
 ): (Release, ReleaseAdminCap) {
     assert!(!consents.is_empty(), ENoTracks);
+    assert!(consents.length() <= MAX_TRACKS, ETooManyTracks);
 
     let mut consented_release_ids = vector[];
     let recording_ids = consents.map!(|consent| {
@@ -172,6 +181,7 @@ public fun new(
         consented_release_ids.push_back(release_id);
         recording_id
     });
+    assert_distinct(&recording_ids);
 
     let mut release = Release {
         id: claim(&mut self.id, ReleaseKey(release_digest(&recording_ids, &salt))),
@@ -259,6 +269,18 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 
 // === Private Functions ===
 
+/// Aborts with `EDuplicateRecording` if a recording ID repeats. Sorts a copy,
+/// so the cost grows as n log n rather than n².
+fun assert_distinct(recording_ids: &vector<ID>) {
+    let mut keys = recording_ids.map_ref!(|id| id.to_address().to_u256());
+    keys.merge_sort_by!(|a, b| *a <= *b);
+    let mut i = 1;
+    while (i < keys.length()) {
+        assert!(keys[i - 1] != keys[i], EDuplicateRecording);
+        i = i + 1;
+    };
+}
+
 /// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`, the key of the release's
 /// derived id. Aborts with `EInvalidSaltLength` unless the salt is 32 bytes.
 fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
@@ -329,6 +351,9 @@ public fun is_published_state(self: &Release): bool {
 public fun published_state_bcs_bytes(): vector<u8> {
     to_bytes(&ReleaseState::Published)
 }
+
+#[test_only]
+public fun max_tracks(): u64 { MAX_TRACKS }
 
 #[test_only]
 public fun consent_for_testing(recording_id: ID, release_id: ID): ReleaseConsent {

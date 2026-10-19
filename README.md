@@ -106,7 +106,10 @@ the recording admins whose consent it collects. `bcs(salt)` is the length byte
 `0x20` and the 32 bytes, so the salt is hashed exactly as shared, with no integer
 encoding. Anyone can recompute a release's ID from its stored recording IDs and the
 salt in `ReleasePublishedEvent`, and `release::derive_address` predicts it before
-creation. A recording may appear more than once.
+creation. A release holds 1 to 1,000 distinct recordings (`ENoTracks`,
+`ETooManyTracks`, `EDuplicateRecording`). The cap leaves headroom under Sui's 1,024
+events per transaction for anything that emits an event per track, such as
+publication and revenue distribution.
 
 A recording admin calls `release::consent(&recording, &cap, release_id)`. It returns
 a store-only `ReleaseConsent`, which extensions can wrap for offers or escrow. Its
