@@ -44,7 +44,7 @@ the package address differs between works.
 
 It also requires the matching treasury cap, zero prior supply, an unregulated
 currency and locked metadata. The checks are `share::mint` from
-[unconfirmedlabs/share](https://github.com/unconfirmedlabs/share), called with the
+[misofm/share](https://github.com/misofm/share), called with the
 values above. A work object is proof that its share coin passed
 these checks. Consuming the treasury cap means each share type
 backs exactly one work.
@@ -159,7 +159,7 @@ preserve their single namespaces. Commit publication metadata when this source i
 
 ## Dependencies
 
-- [share](https://github.com/unconfirmedlabs/share): `share::mint` checks a work's
+- [share](https://github.com/misofm/share): `share::mint` checks a work's
   currency against the canonical metadata and fixes its supply.
 
 The templates are test-only dependencies. Sui framework dependencies are pinned in
