@@ -130,7 +130,7 @@ Consent binds membership and ordering. Revenue splits, names, artwork, and other
 extension data are outside that commitment. Streaming revenue is credited to each
 recording by plays; a channel that sells the release as a whole, such as a
 pressing, defines and collects consent for its own track split. Publication emits
-the track events; it does not repeat consent validation.
+the tracklist; it does not repeat consent validation.
 
 The registry is created once during package initialization. Release creation is
 permissionless, but requires the recording-admin-authorized consents.
@@ -145,10 +145,9 @@ extension access remains available afterward.
 |---|---|
 | `CompositionPublishedEvent<CompositionShare>` | Composition ID |
 | `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
-| `ReleaseTrackAssignedEvent` | Release ID, track position, recording ID |
-| `ReleasePublishedEvent` | Release ID and creator salt |
+| `ReleasePublishedEvent` | Release ID, ordered recording IDs and creator salt |
 
-Track events are emitted in tracklist order. Transaction metadata supplies sender and time.
+A track's position is its index in the recording IDs. Transaction metadata supplies sender and time.
 
 ## Move conventions
 

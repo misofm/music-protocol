@@ -56,7 +56,7 @@ const ENoTracks: u64 = 51;
 
 const SALT_LENGTH: u64 = 32;
 /// Leaves headroom under Sui's 1,024 events per transaction for anything that
-/// emits an event per track, such as publication and revenue distribution.
+/// emits an event per track, such as revenue distribution.
 const MAX_TRACKS: u64 = 1_000;
 
 // === Structs ===
@@ -114,25 +114,16 @@ public enum ReleaseState has drop, store {
 
 // === Events ===
 
-/// Emitted once per track when a release is published, in tracklist order and
-/// before the `ReleasePublishedEvent`. Together the track events are the
-/// release's full tracklist. The track's composition
-/// is not repeated: join `recording_id` to that recording's
-/// `RecordingPublishedEvent`.
-public struct ReleaseTrackAssignedEvent has copy, drop {
-    release_id: ID,
-    /// Zero-based position of the track in the tracklist.
-    position: u64,
-    recording_id: ID,
-}
-
-/// Emitted once when a release is published, after its track events:
-/// identity and the creator's salt. The publish time is the event's
-/// transaction timestamp. Everything else (sender, admin cap address, track
-/// count, registry id, and the digest — see `release_digest`) is
-/// derivable from the transaction and the same-transaction events.
+/// Emitted once when a release is published: its identity, full tracklist and
+/// the creator's salt. Track compositions are not repeated: join each recording
+/// ID to its `RecordingPublishedEvent`. The publish time is the event's
+/// transaction timestamp. Everything else (sender, admin cap address, registry
+/// id, and the digest — see `release_digest`) is derivable from the
+/// transaction and these fields.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
+    /// The tracklist in order; a track's position is its index.
+    recording_ids: vector<ID>,
     salt: vector<u8>,
 }
 
@@ -199,23 +190,23 @@ public fun new(
     (release, release_admin_cap)
 }
 
-/// Publishes the release: emits one `ReleaseTrackAssignedEvent` per track,
-/// shares it, and emits `ReleasePublishedEvent`. Aborts with `EUnauthorized` on a mismatched cap
-/// and `ENotInitializedState` unless `Initialized`.
+/// Publishes the release: shares it and emits `ReleasePublishedEvent`. Aborts
+/// with `EUnauthorized` on a mismatched cap and `ENotInitializedState` unless
+/// `Initialized`.
 public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
 
     match (&self.state) {
         ReleaseState::Initialized { salt } => {
             let salt = *salt;
-            self.emit_track_events();
             self.state = ReleaseState::Published;
 
             let release_id = object::id(&self);
+            let recording_ids = self.recording_ids;
 
             transfer::share_object(self);
 
-            emit(ReleasePublishedEvent { release_id, salt });
+            emit(ReleasePublishedEvent { release_id, recording_ids, salt });
         },
         _ => abort ENotInitializedState,
     }
@@ -286,16 +277,6 @@ fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
     blake2b256(&hash_input)
 }
 
-/// Emits one `ReleaseTrackAssignedEvent` per track in tracklist order.
-fun emit_track_events(self: &Release) {
-    let release_id = self.id.to_inner();
-    let mut position = 0;
-    self.recording_ids.do_ref!(|recording_id| {
-        emit(ReleaseTrackAssignedEvent { release_id, position, recording_id: *recording_id });
-        position = position + 1;
-    });
-}
-
 // === Test Functions ===
 
 /// Runs the real module initializer, creating and sharing the canonical registry.
@@ -319,9 +300,9 @@ public fun release_digest_for_testing(recording_ids: &vector<ID>, salt: &vector<
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
-): (ID, vector<u8>) {
-    let ReleasePublishedEvent { release_id, salt } = event;
-    (release_id, salt)
+): (ID, vector<ID>, vector<u8>) {
+    let ReleasePublishedEvent { release_id, recording_ids, salt } = event;
+    (release_id, recording_ids, salt)
 }
 
 // State predicates are test-only: create-and-publish is atomic, so every
@@ -375,12 +356,4 @@ public fun new_for_testing(
     };
 
     (release, release_admin_cap)
-}
-
-#[test_only]
-public fun release_track_assigned_event_fields(
-    event: ReleaseTrackAssignedEvent,
-): (ID, u64, ID) {
-    let ReleaseTrackAssignedEvent { release_id, position, recording_id } = event;
-    (release_id, position, recording_id)
 }

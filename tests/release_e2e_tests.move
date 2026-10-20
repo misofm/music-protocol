@@ -82,28 +82,22 @@ fun full_track_release_flow_publishes_at_derived_id() {
     assert_eq!(object::id(&rel), predicted_release_id);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
-    rel.publish(&rel_cap); // emits track events and shares
+    rel.publish(&rel_cap); // shares and emits the release event
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_salt) =
+    let (event_release_id, event_recording_ids, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
+    assert_eq!(event_recording_ids, vector[recording_id]);
     assert_eq!(event_salt, SALT);
-    let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
-    assert_eq!(track_events.length(), 1);
-    let (track_release_id, position, event_recording) =
-        release::release_track_assigned_event_fields(track_events[0]);
-    assert_eq!(track_release_id, event_release_id);
-    assert_eq!(position, 0);
-    assert_eq!(event_recording, recording_id);
-    // The track event carries no composition id: joining its recording id to
-    // that recording's `RecordingPublishedEvent` yields it.
-    assert_eq!(event_recording, rec_event_recording_id);
+    // The event carries no composition ids: joining each recording id to that
+    // recording's `RecordingPublishedEvent` yields it.
+    assert_eq!(event_recording_ids[0], rec_event_recording_id);
     assert_eq!(rec_event_composition_id, composition_id);
-    // Re-deriving the release id from the track events' recordings and the
-    // release event's salt reproduces `release_id`.
-    assert_eq!(registry.derive_address(vector[event_recording], event_salt).to_id(), event_release_id);
+    // Re-deriving the release id from the event's tracklist and salt
+    // reproduces `release_id`.
+    assert_eq!(registry.derive_address(event_recording_ids, event_salt).to_id(), event_release_id);
 
     destroy(rel_cap);
     test_scenario::return_shared(registry);

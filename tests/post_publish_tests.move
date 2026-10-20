@@ -81,19 +81,15 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let rel_id = object::id(&rel);
     rel.publish(&cap);
 
-    // Each publish appends exactly one release event (after one track event
-    // per track), so popping the latest is safe with several releases.
+    // Each publish appends exactly one release event, so popping the latest is
+    // safe with several releases.
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
-    let (event_rel_id, salt) = release::release_published_event_fields(events.pop_back());
+    let (event_rel_id, recording_ids, salt) =
+        release::release_published_event_fields(events.pop_back());
     assert_eq!(event_rel_id, rel_id);
+    assert_eq!(recording_ids, vector[recording_id]);
     assert_eq!(salt, test_helpers::salt(0));
-    let mut track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
-    let (track_rel_id, position, event_recording) =
-        release::release_track_assigned_event_fields(track_events.pop_back());
-    assert_eq!(track_rel_id, rel_id);
-    assert_eq!(position, 0);
-    assert_eq!(event_recording, recording_id);
 
     (cap, rel_id)
 }

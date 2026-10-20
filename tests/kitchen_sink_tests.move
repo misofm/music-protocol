@@ -8,10 +8,10 @@ use sui::event;
 use musicos::release;
 use musicos::test_helpers;
 
-/// Publishing a release at `MAX_TRACKS` emits one `ReleaseTrackAssignedEvent`
-/// per position, in order, followed by a single `ReleasePublishedEvent`.
+/// Publishing a release at `MAX_TRACKS` emits a single `ReleasePublishedEvent`
+/// carrying the full tracklist in order.
 #[test]
-fun test_release_track_events_at_max_tracks() {
+fun test_release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
     let mut registry = release::new_registry_for_testing(ctx);
     let track_count = release::max_tracks();
@@ -31,20 +31,11 @@ fun test_release_track_events_at_max_tracks() {
     destroy(rel_cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_salt) =
+    let (event_release_id, event_recording_ids, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
+    assert_eq!(event_recording_ids, recording_ids);
     assert_eq!(event_salt, salt);
-
-    let track_events = event::events_by_type<release::ReleaseTrackAssignedEvent>();
-    assert_eq!(track_events.length(), track_count);
-    track_count.do!(|index| {
-        let (release_id, position, recording_id) =
-            release::release_track_assigned_event_fields(track_events[index]);
-        assert_eq!(release_id, predicted_release_id);
-        assert_eq!(position, index);
-        assert_eq!(recording_id, recording_ids[index]);
-    });
 
     destroy(registry);
 }
