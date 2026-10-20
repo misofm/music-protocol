@@ -54,10 +54,10 @@ backs exactly one work.
 `CompositionRegistry` and `RecordingRegistry` are created and shared once at
 package initialization, like `ReleaseRegistry`, with no other constructor or
 mutable UID access. Each work is derived from its registry under its share type
-(`CompositionKey<T>()`, `RecordingKey<T>()`), so
-`composition::derive_address<T>(&registry)` and
-`recording::derive_address<T>(&registry)` give a work's address from its coin type
-alone. Find the registries by type: there is one of each.
+(`CompositionKey<CompositionShare>()`, `RecordingKey<RecordingShare>()`), so
+`composition::derive_address<CompositionShare>(&registry)` and
+`recording::derive_address<RecordingShare>(&registry)` give a work's address from
+its coin type alone. Find the registries by type: there is one of each.
 
 ## Creation and authorization
 
@@ -78,7 +78,8 @@ recording.publish(&recording_cap);
 `CompositionAdminCap<CompositionShare>` and `RecordingAdminCap<RecordingShare>`
 authorize by type: there is exactly one work per share type. Each cap's address is
 derived from its work. Recording creation only reads the composition, so
-recordings of one composition never contend on it. `ReleaseAdminCap` stores its release ID and is checked by
+recordings of one composition never contend on it. `ReleaseAdminCap` stores its
+release ID, readable with `release::release_id(&cap)`, and is checked by
 `release::authorize`.
 
 The admin capability represents protocol administration, not fractional economic ownership.
@@ -109,11 +110,11 @@ salt in `ReleasePublishedEvent`, and `release::derive_address` predicts it befor
 creation. A release holds 1 to 1,000 distinct recordings (`ENoTracks`,
 `ETooManyTracks`, `EDuplicateRecording`). The cap leaves headroom under Sui's 1,024
 events per transaction for anything that emits an event per track, such as
-publication and revenue distribution.
+revenue distribution.
 
 A recording admin calls `release::consent(&recording, &cap, release_id)`. It returns
-a store-only `ReleaseConsent`, which extensions can wrap for offers or escrow. Its
-getters expose `release_id()` and `recording_id()`.
+a `ReleaseConsent` (`drop, store`), which extensions can wrap for offers or escrow.
+Its getters expose `release_id()` and `recording_id()`.
 
 `release::new` accepts `vector<ReleaseConsent>`, derives the release ID from the
 consented recording IDs and salt, and validates and consumes every consent. It
@@ -162,7 +163,7 @@ of the objects they derive.
 
 `ReleaseConsent` lives in the release module, so only `release::new` can unpack it.
 The registries are shared only by package initialization to
-preserve their single namespaces. Commit publication metadata when this source is deployed.
+preserve their single namespaces.
 
 ## Dependencies
 

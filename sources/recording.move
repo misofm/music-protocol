@@ -26,8 +26,8 @@ use musicos::composition::Composition;
 const SHARE_MODULE: vector<u8> = b"recording_share";
 const SHARE_DATATYPE: vector<u8> = b"RecordingShare";
 const SHARE_DECIMALS: u8 = 6;
-const SHARE_NAME: vector<u8> = b"Recording Share";
 const SHARE_SYMBOL: vector<u8> = b"RSHARE";
+const SHARE_NAME: vector<u8> = b"Recording Share";
 /// 100 million shares in base units.
 const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
@@ -87,8 +87,8 @@ public fun new<RecordingShare: key, CompositionShare>(
         SHARE_MODULE,
         SHARE_DATATYPE,
         SHARE_DECIMALS,
-        SHARE_NAME.to_string(),
         SHARE_SYMBOL.to_string(),
+        SHARE_NAME.to_string(),
         b"".to_string(),
         b"".to_string(),
         SHARE_SUPPLY,
@@ -159,7 +159,8 @@ macro fun new_internal<$RecordingShare>(
 
 // === Test Functions ===
 
-/// Creates a recording without a currency, for tests that don't exercise shares.
+/// Creates a recording without a currency, for tests that don't exercise
+/// shares.
 #[test_only]
 public fun new_for_testing<RecordingShare>(
     composition_id: ID,
@@ -180,7 +181,8 @@ public fun new_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
     RecordingRegistry { id: object::new(ctx) }
 }
 
-/// Unpacks a `RecordingPublishedEvent` (fields are module-private) for test assertions.
+/// Unpacks a `RecordingPublishedEvent` (fields are module-private) for test
+/// assertions.
 #[test_only]
 public fun recording_published_event_fields<RecordingShare>(
     event: RecordingPublishedEvent<RecordingShare>,

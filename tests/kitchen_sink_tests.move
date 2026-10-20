@@ -1,3 +1,6 @@
+// Copyright (c) Miso Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 /// Structural stress test: a release at `MAX_TRACKS` builds and publishes
 /// through the registry.
 #[test_only]
@@ -11,7 +14,7 @@ use musicos::test_helpers;
 /// Publishing a release at `MAX_TRACKS` emits a single `ReleasePublishedEvent`
 /// carrying the full tracklist in order.
 #[test]
-fun test_release_published_event_at_max_tracks() {
+fun release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
     let mut registry = release::new_registry_for_testing(ctx);
     let track_count = release::max_tracks();

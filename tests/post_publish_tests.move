@@ -19,8 +19,8 @@ use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
 
-
-/// The indexer hand-decodes state BCS: `Published` is variant tag 1 with no payload.
+/// The indexer hand-decodes state BCS: `Published` is variant tag 1 with no
+/// payload.
 #[test]
 fun published_state_bcs_layout_keeps_variant_tag() {
     assert_eq!(release::published_state_bcs_bytes(), vector[1u8]);
@@ -157,6 +157,72 @@ fun release_uid_mut_works_after_publish() {
     assert!(!rel.is_initialized_state());
     dynamic_field::add(rel.uid_mut(&cap), b"metadata", 9u64);
     assert!(dynamic_field::exists(rel.uid(), b"metadata"));
+    test_scenario::return_shared(rel);
+
+    destroy(cap);
+    scenario.end();
+}
+
+/// A cap for another release cannot publish this one.
+#[test, expected_failure(abort_code = release::EUnauthorized)]
+fun release_publish_with_foreign_cap_aborts() {
+    let ctx = &mut tx_context::dummy();
+    let (rel, cap) = release::new_for_testing(
+        vector[
+            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
+        ],
+        ctx,
+    );
+    let (other_rel, other_cap) = release::new_for_testing(
+        vector[
+            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
+        ],
+        ctx,
+    );
+    rel.publish(&other_cap);
+    destroy(cap);
+    destroy(other_rel);
+    abort
+}
+
+/// The shared release keeps the tracklist in consent order.
+#[test]
+fun published_release_keeps_track_order() {
+    let mut scenario = test_scenario::begin(OWNER);
+    let ctx = scenario.ctx();
+    let recording_ids = vector::tabulate!(3, |_| test_helpers::fake_id(ctx));
+    let consents = recording_ids.map_ref!(|recording_id| {
+        release::consent_for_testing(*recording_id, test_helpers::fake_id(ctx))
+    });
+    let (rel, cap) = release::new_for_testing(consents, ctx);
+    rel.publish(&cap);
+
+    scenario.next_tx(STRANGER);
+    let rel = scenario.take_shared<Release>();
+    assert_eq!(*rel.recording_ids(), recording_ids);
+    test_scenario::return_shared(rel);
+
+    destroy(cap);
+    scenario.end();
+}
+
+/// A dynamic field attached before `publish` survives it.
+#[test]
+fun release_dynamic_field_attached_before_publish_survives() {
+    let mut scenario = test_scenario::begin(OWNER);
+    let ctx = scenario.ctx();
+    let (mut rel, cap) = release::new_for_testing(
+        vector[
+            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
+        ],
+        ctx,
+    );
+    dynamic_field::add(rel.uid_mut(&cap), b"cover", 5u64);
+    rel.publish(&cap);
+
+    scenario.next_tx(STRANGER);
+    let rel = scenario.take_shared<Release>();
+    assert_eq!(*dynamic_field::borrow<vector<u8>, u64>(rel.uid(), b"cover"), 5);
     test_scenario::return_shared(rel);
 
     destroy(cap);

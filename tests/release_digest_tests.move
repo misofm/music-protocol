@@ -71,3 +71,41 @@ fun short_salt_rejected() {
 fun long_salt_rejected() {
     release::release_digest_for_testing(&vector[id(@0x1)], &vector::tabulate!(33, |_| 0));
 }
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun derive_address_short_salt_rejected() {
+    let mut ctx = tx_context::dummy();
+    let registry = release::new_registry_for_testing(&mut ctx);
+    registry.derive_address(vector[id(@0x1)], vector::tabulate!(31, |_| 0));
+    abort
+}
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun derive_address_empty_salt_rejected() {
+    let mut ctx = tx_context::dummy();
+    let registry = release::new_registry_for_testing(&mut ctx);
+    registry.derive_address(vector[id(@0x1)], vector[]);
+    abort
+}
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun new_short_salt_rejected() {
+    let mut ctx = tx_context::dummy();
+    let mut registry = release::new_registry_for_testing(&mut ctx);
+    let consent = release::consent_for_testing(id(@0x1), id(@0x2));
+    let (rel, cap) = registry.new(vector[consent], vector::tabulate!(31, |_| 0));
+    destroy(rel);
+    destroy(cap);
+    abort
+}
+
+#[test, expected_failure(abort_code = release::EInvalidSaltLength)]
+fun new_empty_salt_rejected() {
+    let mut ctx = tx_context::dummy();
+    let mut registry = release::new_registry_for_testing(&mut ctx);
+    let consent = release::consent_for_testing(id(@0x1), id(@0x2));
+    let (rel, cap) = registry.new(vector[consent], vector[]);
+    destroy(rel);
+    destroy(cap);
+    abort
+}

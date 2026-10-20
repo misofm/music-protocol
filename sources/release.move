@@ -6,18 +6,11 @@
 /// The core/extension boundary, atomic create-and-publish, and `uid_mut`
 /// trust model are as described in `composition`.
 ///
-/// ### Consent scope
-///
 /// The release id is derived under the canonical `ReleaseRegistry` from
-/// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`: the stored tracklist itself
-/// and the creator's random salt, shared off-chain with the consenting
-/// recording admins. A `ReleaseConsent` commits to that id at creation,
-/// consenting to exactly the release's membership and order and nothing else.
-///
-/// The id also commits to the registry's UID, so every pending consent depends
-/// on that namespace staying reachable. `ReleaseRegistry` is therefore
-/// created and shared exactly once at package initialization, with no
-/// constructor, deletion path, or mutable UID accessor.
+/// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`, so a `ReleaseConsent` for
+/// that id consents to exactly the release's membership and order. The
+/// registry is shared once at init with no constructor, deletion path or
+/// mutable UID accessor, so pending consents stay valid.
 module musicos::release;
 
 // === Imports ===
@@ -30,27 +23,20 @@ use musicos::recording::{Recording, RecordingAdminCap};
 
 // === Errors ===
 
-// Authorization errors (0-9)
 /// The provided admin capability does not match this release.
 const EUnauthorized: u64 = 0;
 /// A consent targets a different release.
 const EUnauthorizedAssignment: u64 = 1;
-
-// State errors (10-19)
 /// Operation requires Initialized state.
-const ENotInitializedState: u64 = 10;
-
-// Validation errors (20-29)
+const ENotInitializedState: u64 = 2;
 /// The salt is not exactly 32 bytes.
-const EInvalidSaltLength: u64 = 21;
+const EInvalidSaltLength: u64 = 3;
 /// A recording appears more than once in the tracklist.
-const EDuplicateRecording: u64 = 22;
+const EDuplicateRecording: u64 = 4;
 /// The tracklist exceeds `MAX_TRACKS`.
-const ETooManyTracks: u64 = 23;
-
-// Reference errors (50-59)
+const ETooManyTracks: u64 = 5;
 /// Release must contain at least one track.
-const ENoTracks: u64 = 51;
+const ENoTracks: u64 = 6;
 
 // === Constants ===
 
@@ -156,8 +142,9 @@ public fun consent<RecordingShare>(
 /// the release and admin cap by value so `publish` can follow in the same
 /// PTB. Aborts with `ENoTracks` on an empty tracklist, `ETooManyTracks`
 /// above `MAX_TRACKS` and `EDuplicateRecording` if a recording repeats;
-/// claiming an already-claimed digest aborts in `derived_object`. Each consent must match
-/// the derived release ID; its release ID is discarded when unwrapped.
+/// claiming an already-claimed digest aborts in `derived_object`. Each consent
+/// must match the derived release ID; its release ID is discarded when
+/// unwrapped.
 public fun new(
     self: &mut ReleaseRegistry,
     consents: vector<ReleaseConsent>,
@@ -180,7 +167,9 @@ public fun new(
         recording_ids,
     };
     let release_id = object::id(&release);
-    consented_release_ids.do!(|consented| assert!(consented == release_id, EUnauthorizedAssignment));
+    consented_release_ids.do!(|consented| {
+        assert!(consented == release_id, EUnauthorizedAssignment)
+    });
 
     let release_admin_cap = ReleaseAdminCap {
         id: claim(&mut release.id, ReleaseAdminCapKey()),
@@ -226,7 +215,10 @@ public fun derive_address(
     recording_ids: vector<ID>,
     salt: vector<u8>,
 ): address {
-    derived_object::derive_address(self.id.to_inner(), ReleaseKey(release_digest(&recording_ids, &salt)))
+    derived_object::derive_address(
+        self.id.to_inner(),
+        ReleaseKey(release_digest(&recording_ids, &salt)),
+    )
 }
 
 /// The release authorized by a consent.
@@ -237,6 +229,11 @@ public fun consent_release_id(consent: &ReleaseConsent): ID {
 /// The recording committed to by a consent.
 public fun consent_recording_id(consent: &ReleaseConsent): ID {
     consent.recording_id
+}
+
+/// The release controlled by an admin cap.
+public fun release_id(cap: &ReleaseAdminCap): ID {
+    cap.release_id
 }
 
 /// The ordered tracklist of recording IDs.
@@ -279,7 +276,8 @@ fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
 
 // === Test Functions ===
 
-/// Runs the real module initializer, creating and sharing the canonical registry.
+/// Runs the real module initializer, creating and sharing the canonical
+/// registry.
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
     init(ctx);
@@ -292,11 +290,15 @@ public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
 }
 
 #[test_only]
-public fun release_digest_for_testing(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
+public fun release_digest_for_testing(
+    recording_ids: &vector<ID>,
+    salt: &vector<u8>,
+): vector<u8> {
     release_digest(recording_ids, salt)
 }
 
-/// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test assertions.
+/// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test
+/// assertions.
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
@@ -346,7 +348,10 @@ public fun new_for_testing(
     let mut release = Release {
         id: object::new(ctx),
         state: ReleaseState::Initialized { salt: vector::tabulate!(SALT_LENGTH, |_| 0) },
-        recording_ids: consents.map!(|consent| { let ReleaseConsent { release_id: _, recording_id } = consent; recording_id }),
+        recording_ids: consents.map!(|consent| {
+            let ReleaseConsent { release_id: _, recording_id } = consent;
+            recording_id
+        }),
     };
     let release_id = object::id(&release);
 

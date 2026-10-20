@@ -25,8 +25,8 @@ use share::share;
 const SHARE_MODULE: vector<u8> = b"composition_share";
 const SHARE_DATATYPE: vector<u8> = b"CompositionShare";
 const SHARE_DECIMALS: u8 = 6;
-const SHARE_NAME: vector<u8> = b"Composition Share";
 const SHARE_SYMBOL: vector<u8> = b"CSHARE";
+const SHARE_NAME: vector<u8> = b"Composition Share";
 /// 100 million shares in base units.
 const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
@@ -75,20 +75,26 @@ public fun new<CompositionShare: key>(
     registry: &mut CompositionRegistry,
     currency: &mut Currency<CompositionShare>,
     treasury_cap: TreasuryCap<CompositionShare>,
-): (Composition<CompositionShare>, CompositionAdminCap<CompositionShare>, Balance<CompositionShare>) {
+): (
+    Composition<CompositionShare>,
+    CompositionAdminCap<CompositionShare>,
+    Balance<CompositionShare>,
+) {
     let shares = share::mint(
         currency,
         treasury_cap,
         SHARE_MODULE,
         SHARE_DATATYPE,
         SHARE_DECIMALS,
-        SHARE_NAME.to_string(),
         SHARE_SYMBOL.to_string(),
+        SHARE_NAME.to_string(),
         b"".to_string(),
         b"".to_string(),
         SHARE_SUPPLY,
     );
-    let (composition, cap) = new_internal!<CompositionShare>(claim(&mut registry.id, CompositionKey<CompositionShare>()));
+    let (composition, cap) = new_internal!<CompositionShare>(
+        claim(&mut registry.id, CompositionKey<CompositionShare>()),
+    );
     (composition, cap, shares)
 }
 
@@ -104,7 +110,8 @@ public fun publish<CompositionShare>(
 
 // === View Functions ===
 
-/// The address of the composition of `CompositionShare`. Not proof that it exists.
+/// The address of the composition of `CompositionShare`. Not proof that it
+/// exists.
 public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
     derived_object::derive_address(object::id(registry), CompositionKey<CompositionShare>())
 }
@@ -117,8 +124,9 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 // === Admin Functions ===
 
 /// Mutable access to the composition's UID, gated by the admin cap. Dynamic
-/// fields are the extension surface and stay mutable after publish. A field keyed by a type private to another module
-/// can only be added or removed through that module.
+/// fields are the extension surface and stay mutable after publish. A field
+/// keyed by a type private to another module can only be added or removed
+/// through that module.
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,
     _: &CompositionAdminCap<CompositionShare>,
@@ -145,7 +153,8 @@ macro fun new_internal<$CompositionShare>(
 #[test_only]
 public fun share_supply(): u64 { SHARE_SUPPLY }
 
-/// Creates a composition without a currency, for tests that don't exercise shares.
+/// Creates a composition without a currency, for tests that don't exercise
+/// shares.
 #[test_only]
 public fun new_for_testing<CompositionShare>(
     ctx: &mut TxContext,
@@ -165,7 +174,8 @@ public fun new_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
     CompositionRegistry { id: object::new(ctx) }
 }
 
-/// Unpacks a `CompositionPublishedEvent` (fields are module-private) for test assertions.
+/// Unpacks a `CompositionPublishedEvent` (fields are module-private) for test
+/// assertions.
 #[test_only]
 public fun composition_published_event_fields<CompositionShare>(
     event: CompositionPublishedEvent<CompositionShare>,

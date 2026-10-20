@@ -1,3 +1,6 @@
+// Copyright (c) Miso Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #[test_only]
 module musicos::composition_tests;
 
@@ -11,7 +14,7 @@ const OWNER: address = @0xA1;
 // === Lifecycle ===
 
 #[test]
-fun test_new_composition() {
+fun new_composition() {
     let ctx = &mut tx_context::dummy();
     let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
     destroy(comp);
@@ -21,7 +24,7 @@ fun test_new_composition() {
 /// `publish` shares the composition: publish in one transaction, re-fetch it
 /// via `take_shared` in the next.
 #[test]
-fun test_publish_composition() {
+fun publish_composition() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);

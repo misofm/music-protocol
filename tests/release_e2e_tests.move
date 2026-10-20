@@ -133,7 +133,9 @@ fun new_aborts_when_consent_targets_a_different_release() {
     scenario.next_tx(SONGWRITER);
     // Track consented to the release that salt 1 would produce...
     let registry = scenario.take_shared<ReleaseRegistry>();
-    let wrong_release_id = registry.derive_address(vector[object::id(&rec)], test_helpers::salt(1)).to_id();
+    let wrong_release_id = registry
+        .derive_address(vector[object::id(&rec)], test_helpers::salt(1))
+        .to_id();
     let t = release::consent(&rec, &rec_cap, wrong_release_id);
     test_scenario::return_shared(registry);
 

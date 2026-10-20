@@ -1,11 +1,11 @@
 [package]
 name = "musicos"
 edition = "2024"
-license = "Apache 2.0"
+license = "Apache-2.0"
 authors = ["Miso Labs, Inc. (build@miso.fm)"]
 
 [dependencies]
-share = { git = "https://github.com/misofm/share.git", rev = "889da9b6c5c4286571ec22889966157fb10c0407" }
+share = { git = "https://github.com/misofm/share.git", rev = "410dea3614b2bf6824679b85c8d9164e1d8edfdd" }
 
 composition_share = { local = "templates/composition_share", modes = ["test"] }
 recording_share = { local = "templates/recording_share", modes = ["test"] }
