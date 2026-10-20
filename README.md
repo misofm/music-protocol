@@ -10,8 +10,8 @@ Core defines compositions, recordings, and releases. Every composition and recor
 
 | Type | Core data |
 |---|---|
-| `Composition<CompositionShare>` | Identity and lifecycle; its share coin is the type parameter |
-| `Recording<RecordingShare>` | Identity, lifecycle, and immutable composition ID |
+| `Composition<CompositionShare>` | Identity; its share coin is the type parameter |
+| `Recording<RecordingShare>` | Identity and immutable composition ID |
 | `Release` | Identity, lifecycle, and ordered recording IDs |
 | `ReleaseConsent` | Authorized release ID and recording ID; consumed during release creation |
 

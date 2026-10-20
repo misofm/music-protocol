@@ -19,7 +19,6 @@ fun test_publish_recording() {
 
     scenario.next_tx(OWNER);
     let rec = scenario.take_shared<Recording<RecordingShare>>();
-    assert!(rec.is_published_state());
     test_scenario::return_shared(rec);
 
     destroy(cap);

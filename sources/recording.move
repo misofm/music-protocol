@@ -21,15 +21,6 @@ use sui::event::emit;
 use share::share;
 use musicos::composition::Composition;
 
-#[test_only]
-use sui::bcs::to_bytes;
-
-// === Errors ===
-
-// State errors (10-19)
-/// Operation requires Initialized state but recording is in a different state.
-const ENotInitializedState: u64 = 10;
-
 // === Constants ===
 
 const SHARE_MODULE: vector<u8> = b"recording_share";
@@ -45,8 +36,6 @@ const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 /// An audio recording of a composition.
 public struct Recording<phantom RecordingShare> has key {
     id: UID,
-    /// Current lifecycle state.
-    state: RecordingState,
     /// The parent composition identity.
     composition_id: ID,
 }
@@ -68,16 +57,6 @@ public struct RecordingKey<phantom RecordingShare>() has copy, drop, store;
 
 /// Derivation key for `RecordingAdminCap`.
 public struct RecordingAdminCapKey() has copy, drop, store;
-
-// === Enums ===
-
-/// Lifecycle state of a recording.
-public enum RecordingState has drop, store {
-    /// Created but not yet published.
-    Initialized,
-    /// Published and immutable.
-    Published,
-}
 
 // === Events ===
 
@@ -121,22 +100,15 @@ public fun new<RecordingShare: key, CompositionShare>(
     (recording, cap, shares)
 }
 
-/// Publishes the recording: shares it and freezes its embedded fields.
-/// Aborts with `ENotInitializedState` unless `Initialized`.
+/// Publishes the recording by sharing it.
 public fun publish<RecordingShare>(
-    mut self: Recording<RecordingShare>,
+    self: Recording<RecordingShare>,
     _: &RecordingAdminCap<RecordingShare>,
 ) {
-    match (&self.state) {
-        RecordingState::Initialized => {
-            self.state = RecordingState::Published;
-            let recording_id = object::id(&self);
-            let composition_id = self.composition_id;
-            transfer::share_object(self);
-            emit(RecordingPublishedEvent<RecordingShare> { recording_id, composition_id });
-        },
-        _ => abort ENotInitializedState,
-    }
+    let recording_id = object::id(&self);
+    let composition_id = self.composition_id;
+    transfer::share_object(self);
+    emit(RecordingPublishedEvent<RecordingShare> { recording_id, composition_id });
 }
 
 // === View Functions ===
@@ -158,8 +130,8 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 
 // === Admin Functions ===
 
-/// Mutable access to the recording's UID, gated by the admin cap. Works in
-/// any lifecycle state; see `composition::uid_mut` for the trust model.
+/// Mutable access to the recording's UID, gated by the admin cap. See
+/// `composition::uid_mut` for the trust model.
 public fun uid_mut<RecordingShare>(
     self: &mut Recording<RecordingShare>,
     _: &RecordingAdminCap<RecordingShare>,
@@ -177,7 +149,6 @@ macro fun new_internal<$RecordingShare>(
 ): (Recording<$RecordingShare>, RecordingAdminCap<$RecordingShare>) {
     let mut recording = Recording<$RecordingShare> {
         id: $id,
-        state: RecordingState::Initialized,
         composition_id: $composition_id,
     };
     let cap = RecordingAdminCap<$RecordingShare> {
@@ -187,24 +158,6 @@ macro fun new_internal<$RecordingShare>(
 }
 
 // === Test Functions ===
-
-// State predicates are test-only: create-and-publish is atomic, so every
-// recording a runtime caller can hold is `Published`.
-
-#[test_only]
-public fun is_initialized_state<RecordingShare>(self: &Recording<RecordingShare>): bool {
-    match (&self.state) { RecordingState::Initialized => true, _ => false }
-}
-
-#[test_only]
-public fun is_published_state<RecordingShare>(self: &Recording<RecordingShare>): bool {
-    match (&self.state) { RecordingState::Published => true, _ => false }
-}
-
-#[test_only]
-public fun published_state_bcs_bytes(): vector<u8> {
-    to_bytes(&RecordingState::Published)
-}
 
 /// Creates a recording without a currency, for tests that don't exercise shares.
 #[test_only]

@@ -5,8 +5,8 @@
 /// Each composition is derived from the `CompositionRegistry` under its share
 /// type, so its address follows from the type alone, and creation consumes
 /// the coin's treasury cap, so each share type backs exactly one composition.
-/// The 100M fixed supply goes to the creator. Embedded state freezes at
-/// publication; extensions attach through admin-authorized UID access.
+/// The 100M fixed supply goes to the creator. Extensions attach through
+/// admin-authorized UID access.
 /// Objects are key-only: creation must end with publication in the same
 /// transaction.
 module musicos::composition;
@@ -19,15 +19,6 @@ use sui::coin_registry::Currency;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use share::share;
-
-#[test_only]
-use sui::bcs::to_bytes;
-
-// === Errors ===
-
-// State errors (10-19)
-/// Operation requires Initialized state but composition is in a different state.
-const ENotInitializedState: u64 = 10;
 
 // === Constants ===
 
@@ -44,8 +35,6 @@ const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 /// The underlying written work.
 public struct Composition<phantom CompositionShare> has key {
     id: UID,
-    /// Current lifecycle state.
-    state: CompositionState,
 }
 
 /// Authorizes admin operations on the one composition of its share type.
@@ -65,16 +54,6 @@ public struct CompositionKey<phantom CompositionShare>() has copy, drop, store;
 
 /// Derivation key for `CompositionAdminCap`.
 public struct CompositionAdminCapKey() has copy, drop, store;
-
-// === Enums ===
-
-/// Lifecycle state of a composition.
-public enum CompositionState has drop, store {
-    /// Created but not yet published.
-    Initialized,
-    /// Published and immutable.
-    Published,
-}
 
 // === Events ===
 
@@ -113,21 +92,14 @@ public fun new<CompositionShare: key>(
     (composition, cap, shares)
 }
 
-/// Publishes the composition: shares it and freezes its embedded fields.
-/// Aborts with `ENotInitializedState` unless `Initialized`.
+/// Publishes the composition by sharing it.
 public fun publish<CompositionShare>(
-    mut self: Composition<CompositionShare>,
+    self: Composition<CompositionShare>,
     _: &CompositionAdminCap<CompositionShare>,
 ) {
-    match (&self.state) {
-        CompositionState::Initialized => {
-            self.state = CompositionState::Published;
-            let composition_id = object::id(&self);
-            transfer::share_object(self);
-            emit(CompositionPublishedEvent<CompositionShare> { composition_id });
-        },
-        _ => abort ENotInitializedState,
-    }
+    let composition_id = object::id(&self);
+    transfer::share_object(self);
+    emit(CompositionPublishedEvent<CompositionShare> { composition_id });
 }
 
 // === View Functions ===
@@ -144,9 +116,8 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 
 // === Admin Functions ===
 
-/// Mutable access to the composition's UID, gated by the admin cap. Works in
-/// any lifecycle state: dynamic fields are the extension surface and stay
-/// mutable after publish. A field keyed by a type private to another module
+/// Mutable access to the composition's UID, gated by the admin cap. Dynamic
+/// fields are the extension surface and stay mutable after publish. A field keyed by a type private to another module
 /// can only be added or removed through that module.
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,
@@ -162,10 +133,7 @@ public fun uid_mut<CompositionShare>(
 macro fun new_internal<$CompositionShare>(
     $id: UID,
 ): (Composition<$CompositionShare>, CompositionAdminCap<$CompositionShare>) {
-    let mut composition = Composition<$CompositionShare> {
-        id: $id,
-        state: CompositionState::Initialized,
-    };
+    let mut composition = Composition<$CompositionShare> { id: $id };
     let cap = CompositionAdminCap<$CompositionShare> {
         id: claim(&mut composition.id, CompositionAdminCapKey()),
     };
@@ -174,26 +142,8 @@ macro fun new_internal<$CompositionShare>(
 
 // === Test Functions ===
 
-// State predicates are test-only: create-and-publish is atomic, so every
-// composition a runtime caller can hold is `Published`.
-
-#[test_only]
-public fun is_initialized_state<CompositionShare>(self: &Composition<CompositionShare>): bool {
-    match (&self.state) { CompositionState::Initialized => true, _ => false }
-}
-
-#[test_only]
-public fun is_published_state<CompositionShare>(self: &Composition<CompositionShare>): bool {
-    match (&self.state) { CompositionState::Published => true, _ => false }
-}
-
 #[test_only]
 public fun share_supply(): u64 { SHARE_SUPPLY }
-
-#[test_only]
-public fun published_state_bcs_bytes(): vector<u8> {
-    to_bytes(&CompositionState::Published)
-}
 
 /// Creates a composition without a currency, for tests that don't exercise shares.
 #[test_only]

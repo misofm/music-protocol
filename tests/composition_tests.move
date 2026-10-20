@@ -14,8 +14,6 @@ const OWNER: address = @0xA1;
 fun test_new_composition() {
     let ctx = &mut tx_context::dummy();
     let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    assert!(comp.is_initialized_state());
-    assert!(!comp.is_published_state());
     destroy(comp);
     destroy(cap);
 }
@@ -31,7 +29,6 @@ fun test_publish_composition() {
 
     scenario.next_tx(OWNER);
     let comp = scenario.take_shared<Composition<CompositionShare>>();
-    assert!(comp.is_published_state());
     test_scenario::return_shared(comp);
 
     destroy(cap);

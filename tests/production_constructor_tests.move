@@ -94,7 +94,6 @@ fun templates_create_composition_and_recording() {
     let mut rec = scenario.take_shared<Recording<RecordingShare>>();
     let rec_cap = scenario.take_from_sender<RecordingAdminCap<RecordingShare>>();
     assert_eq!(rec.uid_mut(&rec_cap).to_inner(), recording_id);
-    assert!(rec.is_published_state());
     test_scenario::return_shared(rec);
     scenario.return_to_sender(rec_cap);
 

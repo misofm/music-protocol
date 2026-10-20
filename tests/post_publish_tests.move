@@ -1,10 +1,9 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Post-publish immutability tests: every embedded-field mutator must abort on
-/// a published (shared) object, while the dynamic-field extension surface
-/// (`uid_mut`) must keep working — that asymmetry is the protocol's core
-/// frozen-vs-evolvable contract.
+/// Post-publish tests: the dynamic-field extension surface (`uid_mut`) keeps
+/// working on published (shared) objects, and a Release can't be published
+/// twice.
 #[test_only]
 module musicos::post_publish_tests;
 
@@ -24,10 +23,7 @@ const STRANGER: address = @0x51;
 /// The indexer hand-decodes state BCS: `Published` is variant tag 1 with no payload.
 #[test]
 fun published_state_bcs_layout_keeps_variant_tag() {
-    let expected = vector[1u8];
-    assert_eq!(composition::published_state_bcs_bytes(), expected);
-    assert_eq!(recording::published_state_bcs_bytes(), expected);
-    assert_eq!(release::published_state_bcs_bytes(), expected);
+    assert_eq!(release::published_state_bcs_bytes(), vector[1u8]);
 }
 
 /// Publishes a minimal composition and returns its admin cap (object is shared).
@@ -104,19 +100,6 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
 
 // === Composition ===
 
-#[test, expected_failure(abort_code = composition::ENotInitializedState)]
-fun composition_publish_twice_aborts() {
-    let mut scenario = test_scenario::begin(OWNER);
-    let cap = publish_composition(&mut scenario);
-
-    scenario.next_tx(OWNER);
-    let comp = scenario.take_shared<Composition<CompositionShare>>();
-    comp.publish(&cap);
-
-    destroy(cap);
-    abort
-}
-
 /// The extension surface stays open after publish: `uid_mut` works on a
 /// published composition and dynamic fields can be attached and read back.
 #[test]
@@ -126,8 +109,6 @@ fun composition_uid_mut_works_after_publish() {
 
     scenario.next_tx(OWNER);
     let mut comp = scenario.take_shared<Composition<CompositionShare>>();
-    assert!(comp.is_published_state());
-    assert!(!comp.is_initialized_state());
     dynamic_field::add(comp.uid_mut(&cap), b"extension", 42u64);
     assert!(dynamic_field::exists(comp.uid(), b"extension"));
     assert!(*dynamic_field::borrow<vector<u8>, u64>(comp.uid(), b"extension") == 42);
@@ -135,24 +116,6 @@ fun composition_uid_mut_works_after_publish() {
 
     destroy(cap);
     scenario.end();
-}
-
-// === Recording ===
-
-// Recording and Release have no embedded-field mutators besides `publish`, so
-// immutability reduces to publish-twice aborts plus uid_mut-stays-open.
-
-#[test, expected_failure(abort_code = recording::ENotInitializedState)]
-fun recording_publish_twice_aborts() {
-    let mut scenario = test_scenario::begin(OWNER);
-    let cap = publish_recording(&mut scenario);
-
-    scenario.next_tx(OWNER);
-    let rec = scenario.take_shared<Recording<RecordingShare>>();
-    rec.publish(&cap);
-
-    destroy(cap);
-    abort
 }
 
 // === Release ===
@@ -179,8 +142,6 @@ fun recording_uid_mut_works_after_publish() {
 
     scenario.next_tx(OWNER);
     let mut rec = scenario.take_shared<Recording<RecordingShare>>();
-    assert!(rec.is_published_state());
-    assert!(!rec.is_initialized_state());
     dynamic_field::add(rec.uid_mut(&cap), b"master", 7u64);
     assert!(dynamic_field::exists(rec.uid(), b"master"));
     test_scenario::return_shared(rec);
