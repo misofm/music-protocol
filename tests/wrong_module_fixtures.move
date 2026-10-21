@@ -1,7 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// A correctly named datatype in the wrong module.
 #[test_only]
 module miso_music::wrong_module;
 

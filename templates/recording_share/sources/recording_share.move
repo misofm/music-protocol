@@ -1,10 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// The share coin type for one recording. Publish an unchanged copy of this
-/// package per work: publishing sends a one-time ticket to the publisher,
-/// `initialize_currency` registers the currency with the canonical metadata, and
-/// `miso_music::recording::new` then consumes the treasury cap.
 module recording_share::recording_share;
 
 // === Imports ===
@@ -14,12 +10,10 @@ use sui::coin_registry::{Self, CoinRegistry};
 
 // === Structs ===
 
-/// Never instantiated.
 public struct RecordingShare has key {
     id: UID,
 }
 
-/// Transferable, so uninitialized packages can be handed off.
 public struct InitializeCurrencyTicket has key, store {
     id: UID,
 }
@@ -32,7 +26,6 @@ fun init(ctx: &mut TxContext) {
 
 // === Public Functions ===
 
-/// Supply stays zero until `miso_music::recording::new`.
 public fun initialize_currency(
     registry: &mut CoinRegistry,
     ticket: InitializeCurrencyTicket,

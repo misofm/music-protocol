@@ -1,14 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// A musical composition and its canonical share coin `CompositionShare`.
-/// Each composition is derived from the `CompositionRegistry` under its share
-/// type, so its address follows from the type alone, and creation consumes
-/// the coin's treasury cap, so each share type backs exactly one composition.
-/// The 100M fixed supply goes to the creator. Extensions attach through
-/// admin-authorized UID access.
-/// Objects are key-only: creation must end with publication in the same
-/// transaction.
 module miso_music::composition;
 
 // === Imports ===
@@ -27,7 +19,6 @@ const SHARE_DATATYPE: vector<u8> = b"CompositionShare";
 const SHARE_DECIMALS: u8 = 6;
 const SHARE_SYMBOL: vector<u8> = b"CSHARE";
 const SHARE_NAME: vector<u8> = b"Composition Share";
-/// 100 million shares in base units.
 const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
@@ -40,8 +31,6 @@ public struct CompositionAdminCap<phantom CompositionShare> has key, store {
     id: UID,
 }
 
-/// The derivation parent of every composition, created once at package
-/// initialization with no other constructor or mutable UID accessor.
 public struct CompositionRegistry has key {
     id: UID,
 }
@@ -63,8 +52,6 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(CompositionRegistry { id: object::new(ctx) });
 }
 
-/// `CompositionShare` must be a fresh `<package>::composition_share::CompositionShare`
-/// currency; see `share::mint` for the checks.
 public fun new<CompositionShare: key>(
     registry: &mut CompositionRegistry,
     currency: &mut Currency<CompositionShare>,
@@ -106,7 +93,6 @@ public fun publish<CompositionShare>(
 
 // === View Functions ===
 
-/// Not proof that the composition exists.
 public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
     derived_object::derive_address(object::id(registry), CompositionKey<CompositionShare>())
 }
@@ -117,9 +103,6 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 
 // === Admin Functions ===
 
-/// Dynamic fields are the extension surface and stay mutable after publish. A
-/// field keyed by a type private to another module can only be added or removed
-/// through that module.
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,
     _: &CompositionAdminCap<CompositionShare>,
@@ -129,8 +112,6 @@ public fun uid_mut<CompositionShare>(
 
 // === Private Functions ===
 
-/// `$id` must be a direct `object::new` or `claim` call: object UIDs can't
-/// be passed through a function.
 macro fun new_internal<$CompositionShare>(
     $id: UID,
 ): (Composition<$CompositionShare>, CompositionAdminCap<$CompositionShare>) {

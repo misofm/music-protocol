@@ -1,14 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// A recording of a composition and its canonical share coin `RecordingShare`.
-/// Each recording is derived from the `RecordingRegistry` under its share
-/// type, and creation consumes the coin's treasury cap, so each share type
-/// backs exactly one recording. The 100M fixed supply goes to the creator.
-/// The composition is only read, so recordings of one composition never
-/// contend on it; its ID freezes at creation. Extensions attach through
-/// admin-authorized UID access. Objects are key-only: creation must end with
-/// publication in the same transaction.
 module miso_music::recording;
 
 // === Imports ===
@@ -28,7 +20,6 @@ const SHARE_DATATYPE: vector<u8> = b"RecordingShare";
 const SHARE_DECIMALS: u8 = 6;
 const SHARE_SYMBOL: vector<u8> = b"RSHARE";
 const SHARE_NAME: vector<u8> = b"Recording Share";
-/// 100 million shares in base units.
 const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
@@ -42,8 +33,6 @@ public struct RecordingAdminCap<phantom RecordingShare> has key, store {
     id: UID,
 }
 
-/// The derivation parent of every recording, created once at package
-/// initialization with no other constructor or mutable UID accessor.
 public struct RecordingRegistry has key {
     id: UID,
 }
@@ -66,8 +55,6 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(RecordingRegistry { id: object::new(ctx) });
 }
 
-/// `RecordingShare` must be a fresh `<package>::recording_share::RecordingShare`
-/// currency; see `share::mint` for the checks.
 public fun new<RecordingShare: key, CompositionShare>(
     registry: &mut RecordingRegistry,
     currency: &mut Currency<RecordingShare>,
@@ -109,7 +96,6 @@ public fun publish<RecordingShare>(
 
 // === View Functions ===
 
-/// Not proof that the recording exists.
 public fun derive_address<RecordingShare>(registry: &RecordingRegistry): address {
     derived_object::derive_address(object::id(registry), RecordingKey<RecordingShare>())
 }
@@ -124,7 +110,6 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 
 // === Admin Functions ===
 
-/// See `composition::uid_mut` for the trust model.
 public fun uid_mut<RecordingShare>(
     self: &mut Recording<RecordingShare>,
     _: &RecordingAdminCap<RecordingShare>,
@@ -134,8 +119,6 @@ public fun uid_mut<RecordingShare>(
 
 // === Private Functions ===
 
-/// `$id` must be a direct `object::new` or `claim` call: object UIDs can't
-/// be passed through a function.
 macro fun new_internal<$RecordingShare>(
     $id: UID,
     $composition_id: ID,

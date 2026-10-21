@@ -19,7 +19,7 @@ fun publish_recording() {
         test_helpers::fake_id(ctx),
         ctx,
     );
-    rec.publish(&cap); // shares the recording
+    rec.publish(&cap);
 
     scenario.next_tx(OWNER);
     let rec = scenario.take_shared<Recording<RecordingShare>>();
@@ -28,6 +28,3 @@ fun publish_recording() {
     destroy(cap);
     scenario.end();
 }
-
-// Id independence of recordings under one composition is covered by
-// `production_constructor_tests`.

@@ -1,10 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Release digest and `release::derive_address`: the digest is
-/// `blake2b256(bcs(vector<ID>) ‖ bcs(salt))`. Reference digests were
-/// computed independently (Python `hashlib.blake2b`, digest size 32) for SDKs
-/// to match.
 #[test_only]
 module miso_music::release_digest_tests;
 
@@ -15,8 +11,6 @@ use miso_music::test_helpers;
 
 fun id(a: address): ID { object::id_from_address(a) }
 
-/// `vector<ID>` encodes as a ULEB128 length, then 32 bytes per recording:
-/// exactly the stored tracklist.
 #[test]
 fun recording_ids_encode_as_stored() {
     let bytes = to_bytes(&vector[id(@0x1)]);
@@ -25,7 +19,6 @@ fun recording_ids_encode_as_stored() {
     assert_eq!(bytes[32], 1);
 }
 
-/// One recording, salt of 32 `0x01` bytes.
 #[test]
 fun single_track_reference_digest() {
     assert_eq!(
@@ -34,7 +27,6 @@ fun single_track_reference_digest() {
     );
 }
 
-/// Two recordings, salt of 32 `0x2a` bytes.
 #[test]
 fun two_track_reference_digest() {
     let recording_ids = vector[

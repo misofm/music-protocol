@@ -16,8 +16,6 @@ use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
 
-/// The indexer hand-decodes state BCS: `Published` is variant tag 1 with no
-/// payload.
 #[test]
 fun published_state_bcs_layout_keeps_variant_tag() {
     assert_eq!(release::published_state_bcs_bytes(), vector[1u8]);
@@ -74,8 +72,6 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let rel_id = object::id(&rel);
     rel.publish(&cap);
 
-    // Each publish appends exactly one release event, so popping the latest is
-    // safe with several releases.
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
     let (event_rel_id, event_cap_id, recording_ids, salt) =
@@ -226,7 +222,7 @@ fun release_uid_mut_wrong_cap_aborts() {
 
     scenario.next_tx(STRANGER);
     let mut owner_rel = test_scenario::take_shared_by_id<Release>(&scenario, owner_rel_id);
-    let _uid = owner_rel.uid_mut(&stranger_cap); // wrong cap: aborts EUnauthorized
+    let _uid = owner_rel.uid_mut(&stranger_cap);
 
     test_scenario::return_shared(owner_rel);
     destroy(owner_cap);

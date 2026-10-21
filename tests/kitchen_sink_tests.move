@@ -1,8 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Structural stress test: a release at `MAX_TRACKS` builds and publishes
-/// through the registry.
 #[test_only]
 module miso_music::kitchen_sink_tests;
 

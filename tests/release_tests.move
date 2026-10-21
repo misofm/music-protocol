@@ -1,9 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// `release::new` validation and `release::consent` boundary checks. None touch
-/// object ownership; publish and wrong-cap flows live in `post_publish_tests`
-/// and `release_e2e_tests`.
 #[test_only]
 module miso_music::release_tests;
 
@@ -61,7 +58,6 @@ fun new_above_max_tracks_aborts() {
     destroy(registry);
 }
 
-/// The track-count check runs before the duplicate check.
 #[test, expected_failure(abort_code = release::ETooManyTracks)]
 fun new_above_max_tracks_with_duplicate_aborts_too_many() {
     let ctx = &mut tx_context::dummy();
@@ -75,7 +71,6 @@ fun new_above_max_tracks_with_duplicate_aborts_too_many() {
     destroy(registry);
 }
 
-/// A recording may fill only one slot, wherever the repeat falls.
 #[test, expected_failure(abort_code = release::EDuplicateRecording)]
 fun new_with_duplicate_recording_aborts() {
     let ctx = &mut tx_context::dummy();
@@ -154,9 +149,6 @@ fun new_with_later_mismatched_consent_aborts() {
 }
 
 // === Authorization ===
-
-// The wrong-cap `uid_mut` abort (`EUnauthorized`) is exercised cross-actor in
-// `post_publish_tests::release_uid_mut_wrong_cap_aborts`.
 
 // === Views ===
 

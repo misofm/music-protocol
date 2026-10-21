@@ -40,7 +40,7 @@ the package address differs between works.
 | Symbol | `CSHARE` | `RSHARE` |
 | Decimals | 6 | 6 |
 | Description, icon URL | empty | empty |
-| Supply | 100,000,000, fixed | 100,000,000, fixed |
+| Supply | 100,000,000 shares (10^14 base units), fixed | 100,000,000 shares (10^14 base units), fixed |
 
 It also requires the matching treasury cap, zero prior supply, an unregulated
 currency and locked metadata. The checks are `share::mint` from
@@ -57,7 +57,7 @@ mutable UID access. Each work is derived from its registry under its share type
 (`CompositionKey<CompositionShare>()`, `RecordingKey<RecordingShare>()`), so
 `composition::derive_address<CompositionShare>(&registry)` and
 `recording::derive_address<RecordingShare>(&registry)` give a work's address from
-its coin type alone. Find the registries by type: there is one of each.
+its coin type alone; the result is a derived address, not proof the work exists. Find the registries by type: there is one of each.
 
 ## Creation and authorization
 
@@ -133,8 +133,12 @@ recording by plays; a channel that sells the release as a whole, such as a
 pressing, defines and collects consent for its own track split. Publication emits
 the tracklist; it does not repeat consent validation.
 
-The registry is created once during package initialization. Release creation is
-permissionless, but requires the recording-admin-authorized consents.
+The registry is created once during package initialization, shared with no
+constructor, deletion path or mutable UID access, so pending consents stay valid.
+Release creation is permissionless, but requires the recording-admin-authorized
+consents. Creating a release whose derived ID is already claimed aborts in
+`derived_object`. `release::derive_address` reads the registry immutably, so it
+parallelizes.
 
 ## Lifecycle and events
 
@@ -154,7 +158,8 @@ extension.
 | `RecordingPublishedEvent<RecordingShare>` | `recording_id: ID`, `composition_id: ID`, `admin_cap_id: ID` | 96 B |
 | `ReleasePublishedEvent` | `release_id: ID`, `admin_cap_id: ID`, `recording_ids: vector<ID>`, `salt: vector<u8>` | ~32 KB |
 
-A track's position is its index in `recording_ids`. At 1,000 tracks the release
+A track's position is its index in `recording_ids`. Tracks' compositions are not
+repeated: join each recording ID to its `RecordingPublishedEvent`. At 1,000 tracks the release
 event is about 32 KB, well under Sui's 250 KiB per-event limit. The share coin
 type is the event's type parameter, and its supply is always the fixed
 100,000,000 shares. Transaction metadata supplies sender and time.

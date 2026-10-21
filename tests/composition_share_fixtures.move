@@ -1,10 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Currencies with configurable metadata for `share::mint` check tests.
-/// Each test builds its own registry, so the same type can be registered once
-/// per test. `coin_registry::new_currency` must be called from the type's
-/// module.
 #[test_only]
 module miso_music::composition_share;
 
@@ -15,7 +11,6 @@ use sui::coin_registry::{Self, Currency, CoinRegistry, MetadataCap};
 public struct CompositionShare has key { id: UID }
 public struct WrongName has key { id: UID }
 
-/// The dummy context's sender is the system address.
 public fun registry(ctx: &mut TxContext): CoinRegistry {
     coin_registry::create_coin_data_registry_for_testing(ctx)
 }
