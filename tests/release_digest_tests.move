@@ -6,12 +6,12 @@
 /// computed independently (Python `hashlib.blake2b`, digest size 32) for SDKs
 /// to match.
 #[test_only]
-module musicos::release_digest_tests;
+module miso_music::release_digest_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::bcs::to_bytes;
-use musicos::release;
-use musicos::test_helpers;
+use miso_music::release;
+use miso_music::test_helpers;
 
 fun id(a: address): ID { object::id_from_address(a) }
 

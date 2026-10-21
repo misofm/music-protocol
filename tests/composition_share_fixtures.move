@@ -6,7 +6,7 @@
 /// per test. `coin_registry::new_currency` must be called from the type's
 /// module.
 #[test_only]
-module musicos::composition_share;
+module miso_music::composition_share;
 
 use std::string::String;
 use sui::coin::{TreasuryCap, DenyCapV2};

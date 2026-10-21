@@ -5,16 +5,16 @@
 /// working on published (shared) objects, and a Release can't be published
 /// twice.
 #[test_only]
-module musicos::post_publish_tests;
+module miso_music::post_publish_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::dynamic_field;
 use sui::event;
 use sui::test_scenario;
-use musicos::composition::{Self, Composition, CompositionPublishedEvent};
-use musicos::recording::{Self, Recording, RecordingPublishedEvent};
-use musicos::release::{Self, Release, ReleasePublishedEvent};
-use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
+use miso_music::composition::{Self, Composition, CompositionPublishedEvent};
+use miso_music::recording::{Self, Recording, RecordingPublishedEvent};
+use miso_music::release::{Self, Release, ReleasePublishedEvent};
+use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
 
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;

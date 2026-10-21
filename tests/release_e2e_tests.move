@@ -7,15 +7,15 @@
 /// via `release::consent`, a label assembles and publishes the release (verifying
 /// every track targets it), and anyone can read the result.
 #[test_only]
-module musicos::release_e2e_tests;
+module miso_music::release_e2e_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::event;
 use sui::test_scenario;
-use musicos::composition::{Self, Composition};
-use musicos::recording::{Self, Recording};
-use musicos::release::{Self, Release, ReleaseRegistry};
-use musicos::test_helpers::{Self, CompositionShare, RecordingShare};
+use miso_music::composition::{Self, Composition};
+use miso_music::recording::{Self, Recording};
+use miso_music::release::{Self, Release, ReleaseRegistry};
+use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
 
 const SONGWRITER: address = @0xA1;
 const ARTIST: address = @0xA2;

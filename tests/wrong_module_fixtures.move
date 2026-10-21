@@ -3,7 +3,7 @@
 
 /// A correctly named datatype in the wrong module.
 #[test_only]
-module musicos::wrong_module;
+module miso_music::wrong_module;
 
 use sui::coin::TreasuryCap;
 use sui::coin_registry::{Self, Currency, CoinRegistry};

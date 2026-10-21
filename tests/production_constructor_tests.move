@@ -4,7 +4,7 @@
 /// Production constructors: the full publish flow through the share-coin
 /// templates, and every `share::mint` check as configured by core.
 #[test_only]
-module musicos::production_constructor_tests;
+module miso_music::production_constructor_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::balance::Balance;
@@ -23,22 +23,22 @@ use recording_share::recording_share::{
     RecordingShare,
     InitializeCurrencyTicket as RecordingTicket,
 };
-use musicos::composition::{
+use miso_music::composition::{
     Self,
     Composition,
     CompositionAdminCap,
     CompositionPublishedEvent,
     CompositionRegistry,
 };
-use musicos::composition_share as fixture;
-use musicos::recording::{
+use miso_music::composition_share as fixture;
+use miso_music::recording::{
     Self,
     Recording,
     RecordingAdminCap,
     RecordingPublishedEvent,
     RecordingRegistry,
 };
-use musicos::wrong_module;
+use miso_music::wrong_module;
 
 const SYSTEM: address = @0x0;
 const SONGWRITER: address = @0xA1;
@@ -268,7 +268,7 @@ fun wrong_name_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 6, b"CSHARE".to_string(), b"MusicOS Composition Share".to_string(),
+        &mut registry, 6, b"CSHARE".to_string(), b"Miso Music Composition Share".to_string(),
         b"".to_string(), b"".to_string(), ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);

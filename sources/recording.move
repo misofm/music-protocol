@@ -9,7 +9,7 @@
 /// contend on it; its ID freezes at creation. Extensions attach through
 /// admin-authorized UID access. Objects are key-only: creation must end with
 /// publication in the same transaction.
-module musicos::recording;
+module miso_music::recording;
 
 // === Imports ===
 
@@ -19,7 +19,7 @@ use sui::coin_registry::Currency;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use share::share;
-use musicos::composition::Composition;
+use miso_music::composition::Composition;
 
 // === Constants ===
 

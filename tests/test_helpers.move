@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[test_only]
-module musicos::test_helpers;
+module miso_music::test_helpers;
 
 /// Phantom share type for compositions created without a currency.
 public struct CompositionShare() has drop;

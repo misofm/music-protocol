@@ -4,7 +4,7 @@
 /// The share coin type for one composition. Publish an unchanged copy of this
 /// package per work: publishing sends a one-time ticket to the publisher,
 /// `initialize_currency` registers the currency with the canonical metadata, and
-/// `musicos::composition::new` then consumes the treasury cap.
+/// `miso_music::composition::new` then consumes the treasury cap.
 module composition_share::composition_share;
 
 // === Imports ===
@@ -34,7 +34,7 @@ fun init(ctx: &mut TxContext) {
 // === Public Functions ===
 
 /// Registers the currency with locked canonical metadata and returns its
-/// treasury cap. Supply stays zero until `musicos::composition::new`.
+/// treasury cap. Supply stays zero until `miso_music::composition::new`.
 public fun initialize_currency(
     ticket: InitializeCurrencyTicket,
     registry: &mut CoinRegistry,

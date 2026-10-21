@@ -11,7 +11,7 @@
 /// that id consents to exactly the release's membership and order. The
 /// registry is shared once at init with no constructor, deletion path or
 /// mutable UID accessor, so pending consents stay valid.
-module musicos::release;
+module miso_music::release;
 
 // === Imports ===
 
@@ -19,7 +19,7 @@ use sui::bcs::to_bytes;
 use sui::derived_object::{Self, claim};
 use sui::event::emit;
 use sui::hash::blake2b256;
-use musicos::recording::{Recording, RecordingAdminCap};
+use miso_music::recording::{Recording, RecordingAdminCap};
 
 // === Errors ===
 

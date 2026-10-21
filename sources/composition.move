@@ -9,7 +9,7 @@
 /// admin-authorized UID access.
 /// Objects are key-only: creation must end with publication in the same
 /// transaction.
-module musicos::composition;
+module miso_music::composition;
 
 // === Imports ===
 

@@ -4,12 +4,12 @@
 /// Structural stress test: a release at `MAX_TRACKS` builds and publishes
 /// through the registry.
 #[test_only]
-module musicos::kitchen_sink_tests;
+module miso_music::kitchen_sink_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use sui::event;
-use musicos::release;
-use musicos::test_helpers;
+use miso_music::release;
+use miso_music::test_helpers;
 
 /// Publishing a release at `MAX_TRACKS` emits a single `ReleasePublishedEvent`
 /// carrying the full tracklist in order.

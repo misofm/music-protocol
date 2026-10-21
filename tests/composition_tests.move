@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[test_only]
-module musicos::composition_tests;
+module miso_music::composition_tests;
 
 use std::unit_test::destroy;
 use sui::test_scenario;
-use musicos::composition::{Self, Composition};
-use musicos::test_helpers::CompositionShare;
+use miso_music::composition::{Self, Composition};
+use miso_music::test_helpers::CompositionShare;
 
 const OWNER: address = @0xA1;
 

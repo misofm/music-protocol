@@ -4,7 +4,7 @@
 /// The share coin type for one recording. Publish an unchanged copy of this
 /// package per work: publishing sends a one-time ticket to the publisher,
 /// `initialize_currency` registers the currency with the canonical metadata, and
-/// `musicos::recording::new` then consumes the treasury cap.
+/// `miso_music::recording::new` then consumes the treasury cap.
 module recording_share::recording_share;
 
 // === Imports ===
@@ -34,7 +34,7 @@ fun init(ctx: &mut TxContext) {
 // === Public Functions ===
 
 /// Registers the currency with locked canonical metadata and returns its
-/// treasury cap. Supply stays zero until `musicos::recording::new`.
+/// treasury cap. Supply stays zero until `miso_music::recording::new`.
 public fun initialize_currency(
     ticket: InitializeCurrencyTicket,
     registry: &mut CoinRegistry,

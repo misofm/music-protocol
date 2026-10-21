@@ -1,5 +1,5 @@
 [package]
-name = "musicos"
+name = "miso_music"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Miso Labs, Inc. (build@miso.fm)"]
