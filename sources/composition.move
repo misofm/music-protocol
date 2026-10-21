@@ -60,6 +60,7 @@ public struct CompositionAdminCapKey() has copy, drop, store;
 /// Emitted once when the composition is published.
 public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop {
     composition_id: ID,
+    admin_cap_id: ID,
 }
 
 // === Public Functions ===
@@ -101,11 +102,14 @@ public fun new<CompositionShare: key>(
 /// Publishes the composition by sharing it.
 public fun publish<CompositionShare>(
     self: Composition<CompositionShare>,
-    _: &CompositionAdminCap<CompositionShare>,
+    cap: &CompositionAdminCap<CompositionShare>,
 ) {
     let composition_id = object::id(&self);
     transfer::share_object(self);
-    emit(CompositionPublishedEvent<CompositionShare> { composition_id });
+    emit(CompositionPublishedEvent<CompositionShare> {
+        composition_id,
+        admin_cap_id: object::id(cap),
+    });
 }
 
 // === View Functions ===
@@ -179,7 +183,7 @@ public fun new_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
 #[test_only]
 public fun composition_published_event_fields<CompositionShare>(
     event: CompositionPublishedEvent<CompositionShare>,
-): ID {
-    let CompositionPublishedEvent { composition_id } = event;
-    composition_id
+): (ID, ID) {
+    let CompositionPublishedEvent { composition_id, admin_cap_id } = event;
+    (composition_id, admin_cap_id)
 }

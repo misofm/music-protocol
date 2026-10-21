@@ -57,8 +57,9 @@ fun full_track_release_flow_publishes_at_derived_id() {
     rec.publish(&rec_cap); // shares the recording
     let mut recording_events =
         event::events_by_type<recording::RecordingPublishedEvent<RecordingShare>>();
-    let (rec_event_recording_id, rec_event_composition_id) =
+    let (rec_event_recording_id, rec_event_composition_id, rec_event_admin_cap_id) =
         recording::recording_published_event_fields(recording_events.pop_back());
+    assert_eq!(rec_event_admin_cap_id, object::id(&rec_cap));
     test_scenario::return_shared(comp);
 
     // === Tx 3 (ARTIST): consent to the predicted release id via release::consent ===
@@ -86,9 +87,10 @@ fun full_track_release_flow_publishes_at_derived_id() {
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_recording_ids, event_salt) =
+    let (event_release_id, event_admin_cap_id, event_recording_ids, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
+    assert_eq!(event_admin_cap_id, object::id(&rel_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
     assert_eq!(event_salt, SALT);
     // The event carries no composition ids: joining each recording id to that

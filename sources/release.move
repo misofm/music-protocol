@@ -100,14 +100,12 @@ public enum ReleaseState has drop, store {
 
 // === Events ===
 
-/// Emitted once when a release is published: its identity, full tracklist and
-/// the creator's salt. Track compositions are not repeated: join each recording
-/// ID to its `RecordingPublishedEvent`. The publish time is the event's
-/// transaction timestamp. Everything else (sender, admin cap address, registry
-/// id, and the digest — see `release_digest`) is derivable from the
-/// transaction and these fields.
+/// Emitted once when a release is published: its identity, admin cap, full
+/// tracklist and the creator's salt. Track compositions are not repeated: join
+/// each recording ID to its `RecordingPublishedEvent`.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
+    admin_cap_id: ID,
     /// The tracklist in order; a track's position is its index.
     recording_ids: vector<ID>,
     salt: vector<u8>,
@@ -195,7 +193,12 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
 
             transfer::share_object(self);
 
-            emit(ReleasePublishedEvent { release_id, recording_ids, salt });
+            emit(ReleasePublishedEvent {
+                release_id,
+                admin_cap_id: object::id(cap),
+                recording_ids,
+                salt,
+            });
         },
         _ => abort ENotInitializedState,
     }
@@ -302,9 +305,9 @@ public fun release_digest_for_testing(
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
-): (ID, vector<ID>, vector<u8>) {
-    let ReleasePublishedEvent { release_id, recording_ids, salt } = event;
-    (release_id, recording_ids, salt)
+): (ID, ID, vector<ID>, vector<u8>) {
+    let ReleasePublishedEvent { release_id, admin_cap_id, recording_ids, salt } = event;
+    (release_id, admin_cap_id, recording_ids, salt)
 }
 
 // State predicates are test-only: create-and-publish is atomic, so every

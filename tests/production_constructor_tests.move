@@ -84,7 +84,10 @@ fun templates_create_composition_and_recording() {
     assert_eq!(currency.total_supply(), option::some(composition::share_supply()));
     comp.publish(&comp_cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
-    assert_eq!(composition::composition_published_event_fields(events.pop_back()), composition_id);
+    let (event_composition, event_admin_cap) =
+        composition::composition_published_event_fields(events.pop_back());
+    assert_eq!(event_composition, composition_id);
+    assert_eq!(event_admin_cap, object::id(&comp_cap));
     test_scenario::return_shared(currency);
     transfer::public_transfer(comp_cap, SONGWRITER);
     destroy(shares);
@@ -118,10 +121,11 @@ fun templates_create_composition_and_recording() {
     assert_eq!(shares.value(), composition::share_supply());
     rec.publish(&rec_cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
-    let (event_recording, event_composition) =
+    let (event_recording, event_composition, event_admin_cap) =
         recording::recording_published_event_fields(events.pop_back());
     assert_eq!(event_recording, recording_id);
     assert_eq!(event_composition, composition_id);
+    assert_eq!(event_admin_cap, object::id(&rec_cap));
     test_scenario::return_shared(comp);
     test_scenario::return_shared(currency);
     transfer::public_transfer(rec_cap, ARTIST);

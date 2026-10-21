@@ -150,18 +150,19 @@ extension.
 
 | Event | Fields | Max size |
 |---|---|---|
-| `CompositionPublishedEvent<CompositionShare>` | `composition_id: ID` | 32 B |
-| `RecordingPublishedEvent<RecordingShare>` | `recording_id: ID`, `composition_id: ID` | 64 B |
-| `ReleasePublishedEvent` | `release_id: ID`, `recording_ids: vector<ID>`, `salt: vector<u8>` | ~32 KB |
+| `CompositionPublishedEvent<CompositionShare>` | `composition_id: ID`, `admin_cap_id: ID` | 64 B |
+| `RecordingPublishedEvent<RecordingShare>` | `recording_id: ID`, `composition_id: ID`, `admin_cap_id: ID` | 96 B |
+| `ReleasePublishedEvent` | `release_id: ID`, `admin_cap_id: ID`, `recording_ids: vector<ID>`, `salt: vector<u8>` | ~32 KB |
 
 A track's position is its index in `recording_ids`. At 1,000 tracks the release
 event is about 32 KB, well under Sui's 250 KiB per-event limit. The share coin
 type is the event's type parameter, and its supply is always the fixed
 100,000,000 shares. Transaction metadata supplies sender and time.
 
-Admin cap IDs are not emitted; they are derived with
+Every object ID is also derivable with
 `sui::derived_object::derive_address(parent_id, key)`, i.e.
-`dynamic_field::hash_type_and_key(parent, DerivedObjectKey(key))`:
+`dynamic_field::hash_type_and_key(parent, DerivedObjectKey(key))`; the events
+carry the work and admin cap IDs, so indexers need not compute them:
 
 | Object | Parent | Key |
 |---|---|---|

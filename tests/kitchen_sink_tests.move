@@ -31,12 +31,14 @@ fun release_published_event_at_max_tracks() {
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
     rel.publish(&rel_cap);
+    let rel_cap_id = object::id(&rel_cap);
     destroy(rel_cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_recording_ids, event_salt) =
+    let (event_release_id, event_admin_cap_id, event_recording_ids, event_salt) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, predicted_release_id);
+    assert_eq!(event_admin_cap_id, rel_cap_id);
     assert_eq!(event_recording_ids, recording_ids);
     assert_eq!(event_salt, salt);
 

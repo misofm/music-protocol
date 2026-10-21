@@ -38,9 +38,10 @@ fun publish_composition(
     // Event payload captures the identity.
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(events.length(), 1);
-    let event_comp_id =
+    let (event_comp_id, event_cap_id) =
         composition::composition_published_event_fields(events.pop_back());
     assert_eq!(event_comp_id, comp_id);
+    assert_eq!(event_cap_id, object::id(&cap));
 
     cap
 }
@@ -61,9 +62,10 @@ fun publish_recording(
     // Event payload captures the recording/composition linkage.
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     assert_eq!(events.length(), 1);
-    let (event_rec_id, event_comp_id) =
+    let (event_rec_id, event_comp_id, event_cap_id) =
         recording::recording_published_event_fields(events.pop_back());
     assert_eq!(event_rec_id, rec_id);
+    assert_eq!(event_cap_id, object::id(&cap));
     assert_eq!(event_comp_id, composition_id);
 
     cap
@@ -85,9 +87,10 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     // safe with several releases.
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
-    let (event_rel_id, recording_ids, salt) =
+    let (event_rel_id, event_cap_id, recording_ids, salt) =
         release::release_published_event_fields(events.pop_back());
     assert_eq!(event_rel_id, rel_id);
+    assert_eq!(event_cap_id, object::id(&cap));
     assert_eq!(recording_ids, vector[recording_id]);
     assert_eq!(salt, test_helpers::salt(0));
 
