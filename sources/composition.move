@@ -32,13 +32,10 @@ const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
 
-/// The underlying written work.
 public struct Composition<phantom CompositionShare> has key {
     id: UID,
 }
 
-/// Authorizes admin operations on the one composition of its share type.
-/// Its address is derived from the composition under `CompositionAdminCapKey`.
 public struct CompositionAdminCap<phantom CompositionShare> has key, store {
     id: UID,
 }
@@ -49,15 +46,12 @@ public struct CompositionRegistry has key {
     id: UID,
 }
 
-/// Derivation key for the composition of a share type.
 public struct CompositionKey<phantom CompositionShare>() has copy, drop, store;
 
-/// Derivation key for `CompositionAdminCap`.
 public struct CompositionAdminCapKey() has copy, drop, store;
 
 // === Events ===
 
-/// Emitted once when the composition is published.
 public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop {
     composition_id: ID,
     admin_cap_id: ID,
@@ -69,9 +63,8 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(CompositionRegistry { id: object::new(ctx) });
 }
 
-/// Creates the composition and its admin cap from a fresh
-/// `<package>::composition_share::CompositionShare` currency, returning the
-/// full share supply. See `share::mint` for the checks.
+/// `CompositionShare` must be a fresh `<package>::composition_share::CompositionShare`
+/// currency; see `share::mint` for the checks.
 public fun new<CompositionShare: key>(
     registry: &mut CompositionRegistry,
     currency: &mut Currency<CompositionShare>,
@@ -99,7 +92,6 @@ public fun new<CompositionShare: key>(
     (composition, cap, shares)
 }
 
-/// Publishes the composition by sharing it.
 public fun publish<CompositionShare>(
     self: Composition<CompositionShare>,
     cap: &CompositionAdminCap<CompositionShare>,
@@ -114,22 +106,19 @@ public fun publish<CompositionShare>(
 
 // === View Functions ===
 
-/// The address of the composition of `CompositionShare`. Not proof that it
-/// exists.
+/// Not proof that the composition exists.
 public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
     derived_object::derive_address(object::id(registry), CompositionKey<CompositionShare>())
 }
 
-/// Read access to the composition's UID (dynamic fields).
 public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
     &self.id
 }
 
 // === Admin Functions ===
 
-/// Mutable access to the composition's UID, gated by the admin cap. Dynamic
-/// fields are the extension surface and stay mutable after publish. A field
-/// keyed by a type private to another module can only be added or removed
+/// Dynamic fields are the extension surface and stay mutable after publish. A
+/// field keyed by a type private to another module can only be added or removed
 /// through that module.
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,
@@ -157,8 +146,6 @@ macro fun new_internal<$CompositionShare>(
 #[test_only]
 public fun share_supply(): u64 { SHARE_SUPPLY }
 
-/// Creates a composition without a currency, for tests that don't exercise
-/// shares.
 #[test_only]
 public fun new_for_testing<CompositionShare>(
     ctx: &mut TxContext,
@@ -166,20 +153,16 @@ public fun new_for_testing<CompositionShare>(
     new_internal!<CompositionShare>(object::new(ctx))
 }
 
-/// Runs the real module initializer, creating and sharing the registry.
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
     init(ctx);
 }
 
-/// Creates an unshared registry for tests.
 #[test_only]
 public fun new_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
     CompositionRegistry { id: object::new(ctx) }
 }
 
-/// Unpacks a `CompositionPublishedEvent` (fields are module-private) for test
-/// assertions.
 #[test_only]
 public fun composition_published_event_fields<CompositionShare>(
     event: CompositionPublishedEvent<CompositionShare>,

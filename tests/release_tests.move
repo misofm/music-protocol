@@ -14,7 +14,6 @@ use miso_music::recording;
 use miso_music::release;
 use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
 
-/// Helper to create an ordered tracklist of n tracks.
 fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::ReleaseConsent> {
     vector::tabulate!(track_count, |_index| release::consent_for_testing(
         test_helpers::fake_id(ctx),
@@ -22,7 +21,6 @@ fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::ReleaseC
     ))
 }
 
-/// Helper: a composition and a recording of it, with their admin caps.
 fun composition_and_recording(
     ctx: &mut TxContext,
 ): (
@@ -36,7 +34,6 @@ fun composition_and_recording(
     (comp, comp_cap, rec, rec_cap)
 }
 
-/// Helper to create a minimal release.
 fun test_release(ctx: &mut TxContext): (release::Release, release::ReleaseAdminCap) {
     release::new_for_testing(test_tracks(1, ctx), ctx)
 }
@@ -98,8 +95,6 @@ fun new_with_duplicate_recording_aborts() {
     destroy(registry);
 }
 
-/// The same digest (recording ids + salt) can only ever be claimed
-/// once under the same canonical registry.
 #[test, expected_failure(abort_code = derived_object::EObjectAlreadyExists)]
 fun duplicate_digest_aborts() {
     let ctx = &mut tx_context::dummy();
@@ -111,7 +106,6 @@ fun duplicate_digest_aborts() {
         vector[release::consent_for_testing(rec_id, rel_id)],
         test_helpers::salt(7),
     );
-    // Identical recording ids and salt: identical digest.
     let (rel2, cap2) = registry.new(
         vector[release::consent_for_testing(rec_id, rel_id)],
         test_helpers::salt(7),
@@ -123,7 +117,6 @@ fun duplicate_digest_aborts() {
     destroy(registry);
 }
 
-/// Adjacent repeats are caught too.
 #[test, expected_failure(abort_code = release::EDuplicateRecording)]
 fun new_with_adjacent_duplicate_aborts() {
     let ctx = &mut tx_context::dummy();
@@ -142,7 +135,6 @@ fun new_with_adjacent_duplicate_aborts() {
     destroy(registry);
 }
 
-/// Every consent is checked, not just the first.
 #[test, expected_failure(abort_code = release::EUnauthorizedAssignment)]
 fun new_with_later_mismatched_consent_aborts() {
     let ctx = &mut tx_context::dummy();
@@ -184,8 +176,6 @@ fun release_views_reflect_initialized_release() {
 
 // === release::consent ===
 
-/// `release::consent` carries the target release id it was called with and
-/// reads the recording id off the `&Recording` argument.
 #[test]
 fun consent_records_release_and_recording() {
     let ctx = &mut tx_context::dummy();

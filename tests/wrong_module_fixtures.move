@@ -8,10 +8,8 @@ module miso_music::wrong_module;
 use sui::coin::TreasuryCap;
 use sui::coin_registry::{Self, Currency, CoinRegistry};
 
-/// The right datatype name in the wrong module.
 public struct CompositionShare has key { id: UID }
 
-/// Canonical composition share metadata with the metadata cap deleted.
 public fun canonical(
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,

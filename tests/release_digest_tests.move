@@ -47,7 +47,6 @@ fun two_track_reference_digest() {
     );
 }
 
-/// Every input changes the derived id; the same inputs always give the same id.
 #[test]
 fun derived_id_depends_on_every_input() {
     let mut ctx = tx_context::dummy();

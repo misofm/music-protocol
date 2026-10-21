@@ -12,17 +12,14 @@ use std::string::String;
 use sui::coin::{TreasuryCap, DenyCapV2};
 use sui::coin_registry::{Self, Currency, CoinRegistry, MetadataCap};
 
-/// Correct module and datatype names.
 public struct CompositionShare has key { id: UID }
-/// Correct module, wrong datatype name.
 public struct WrongName has key { id: UID }
 
-/// A registry for one test; the dummy context's sender is the system address.
+/// The dummy context's sender is the system address.
 public fun registry(ctx: &mut TxContext): CoinRegistry {
     coin_registry::create_coin_data_registry_for_testing(ctx)
 }
 
-/// Canonical composition share metadata with the metadata cap deleted.
 public fun canonical(
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,
@@ -38,7 +35,6 @@ public fun canonical(
     )
 }
 
-/// Arbitrary metadata with the metadata cap deleted.
 public fun custom(
     registry: &mut CoinRegistry,
     decimals: u8,
@@ -65,7 +61,6 @@ public fun custom(
     (currency, treasury_cap)
 }
 
-/// Canonical metadata but the metadata cap is kept, so metadata stays mutable.
 public fun unlocked(
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,
@@ -83,7 +78,6 @@ public fun unlocked(
     (currency, treasury_cap, metadata_cap)
 }
 
-/// Canonical metadata on a regulated currency.
 public fun regulated(
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,
@@ -106,7 +100,6 @@ public fun regulated(
     (currency, treasury_cap, deny_cap)
 }
 
-/// Canonical metadata on the wrongly named `WrongName` type.
 public fun wrong_name(
     registry: &mut CoinRegistry,
     ctx: &mut TxContext,

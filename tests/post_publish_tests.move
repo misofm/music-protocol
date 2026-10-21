@@ -1,9 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Post-publish tests: the dynamic-field extension surface (`uid_mut`) keeps
-/// working on published (shared) objects, and a Release can't be published
-/// twice.
 #[test_only]
 module miso_music::post_publish_tests;
 
@@ -26,7 +23,6 @@ fun published_state_bcs_layout_keeps_variant_tag() {
     assert_eq!(release::published_state_bcs_bytes(), vector[1u8]);
 }
 
-/// Publishes a minimal composition and returns its admin cap (object is shared).
 fun publish_composition(
     scenario: &mut test_scenario::Scenario,
 ): composition::CompositionAdminCap<CompositionShare> {
@@ -35,7 +31,6 @@ fun publish_composition(
     let comp_id = object::id(&comp);
     comp.publish(&cap);
 
-    // Event payload captures the identity.
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(events.length(), 1);
     let (event_comp_id, event_cap_id) =
@@ -46,7 +41,6 @@ fun publish_composition(
     cap
 }
 
-/// Publishes a minimal recording and returns its admin cap (object is shared).
 fun publish_recording(
     scenario: &mut test_scenario::Scenario,
 ): recording::RecordingAdminCap<RecordingShare> {
@@ -59,7 +53,6 @@ fun publish_recording(
     let rec_id = object::id(&rec);
     rec.publish(&cap);
 
-    // Event payload captures the recording/composition linkage.
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     assert_eq!(events.length(), 1);
     let (event_rec_id, event_comp_id, event_cap_id) =
@@ -71,8 +64,6 @@ fun publish_recording(
     cap
 }
 
-/// Publishes a minimal release and returns its admin cap and id (object is
-/// shared). The id disambiguates when a test publishes several releases.
 fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAdminCap, ID) {
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
@@ -99,8 +90,6 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
 
 // === Composition ===
 
-/// The extension surface stays open after publish: `uid_mut` works on a
-/// published composition and dynamic fields can be attached and read back.
 #[test]
 fun composition_uid_mut_works_after_publish() {
     let mut scenario = test_scenario::begin(OWNER);
@@ -132,8 +121,6 @@ fun release_publish_twice_aborts() {
     abort
 }
 
-/// Masters and other extensions attach to recordings after publish — the
-/// dynamic-field surface must stay open while embedded fields are frozen.
 #[test]
 fun recording_uid_mut_works_after_publish() {
     let mut scenario = test_scenario::begin(OWNER);
@@ -166,7 +153,6 @@ fun release_uid_mut_works_after_publish() {
     scenario.end();
 }
 
-/// A cap for another release cannot publish this one.
 #[test, expected_failure(abort_code = release::EUnauthorized)]
 fun release_publish_with_foreign_cap_aborts() {
     let ctx = &mut tx_context::dummy();
@@ -188,7 +174,6 @@ fun release_publish_with_foreign_cap_aborts() {
     abort
 }
 
-/// The shared release keeps the tracklist in consent order.
 #[test]
 fun published_release_keeps_track_order() {
     let mut scenario = test_scenario::begin(OWNER);
@@ -209,7 +194,6 @@ fun published_release_keeps_track_order() {
     scenario.end();
 }
 
-/// A dynamic field attached before `publish` survives it.
 #[test]
 fun release_dynamic_field_attached_before_publish_survives() {
     let mut scenario = test_scenario::begin(OWNER);
@@ -232,19 +216,14 @@ fun release_dynamic_field_attached_before_publish_survives() {
     scenario.end();
 }
 
-/// A cap minted for an unrelated release cannot open `uid_mut` on this one,
-/// even after both are published and shared — the realistic cross-actor,
-/// post-publish shape of a wrong-cap attempt.
 #[test, expected_failure(abort_code = release::EUnauthorized)]
 fun release_uid_mut_wrong_cap_aborts() {
     let mut scenario = test_scenario::begin(OWNER);
     let (owner_cap, owner_rel_id) = publish_release(&mut scenario);
 
-    // STRANGER publishes an unrelated release and holds its cap.
     scenario.next_tx(STRANGER);
     let (stranger_cap, _stranger_rel_id) = publish_release(&mut scenario);
 
-    // STRANGER tries to open uid_mut on OWNER's release with that cap.
     scenario.next_tx(STRANGER);
     let mut owner_rel = test_scenario::take_shared_by_id<Release>(&scenario, owner_rel_id);
     let _uid = owner_rel.uid_mut(&stranger_cap); // wrong cap: aborts EUnauthorized

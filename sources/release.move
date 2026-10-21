@@ -23,19 +23,12 @@ use miso_music::recording::{Recording, RecordingAdminCap};
 
 // === Errors ===
 
-/// The provided admin capability does not match this release.
 const EUnauthorized: u64 = 0;
-/// A consent targets a different release.
 const EUnauthorizedAssignment: u64 = 1;
-/// Operation requires Initialized state.
 const ENotInitializedState: u64 = 2;
-/// The salt is not exactly 32 bytes.
 const EInvalidSaltLength: u64 = 3;
-/// A recording appears more than once in the tracklist.
 const EDuplicateRecording: u64 = 4;
-/// The tracklist exceeds `MAX_TRACKS`.
 const ETooManyTracks: u64 = 5;
-/// Release must contain at least one track.
 const ENoTracks: u64 = 6;
 
 // === Constants ===
@@ -47,20 +40,16 @@ const MAX_TRACKS: u64 = 1_000;
 
 // === Structs ===
 
-/// A music release: an ordered flat tracklist of recordings.
 public struct Release has key {
     id: UID,
-    /// Current lifecycle state.
     state: ReleaseState,
     /// The ordered tracklist of distinct recordings; the digest pre-image
     /// every track's recording admin consented to.
     recording_ids: vector<ID>,
 }
 
-/// Authorizes admin operations on one release.
 public struct ReleaseAdminCap has key, store {
     id: UID,
-    /// ID of the release this capability controls.
     release_id: ID,
 }
 
@@ -73,36 +62,29 @@ public struct ReleaseRegistry has key {
 /// Recording-admin consent to include a recording in one specific release.
 /// Extensions may wrap consent for offers or escrow before release creation.
 public struct ReleaseConsent has drop, store {
-    /// The exact release identity authorized by the recording admin.
     release_id: ID,
-    /// The recording committed to by this consent.
     recording_id: ID,
 }
 
-/// Key for release UID derivation.
 public struct ReleaseKey(vector<u8>) has copy, drop, store;
 
-/// Derivation key for `ReleaseAdminCap`.
 public struct ReleaseAdminCapKey() has copy, drop, store;
 
 // === Enums ===
 
-/// Lifecycle state of a release.
 public enum ReleaseState has drop, store {
     /// Created but not yet published. Carries the creator's salt, a digest
     /// input `publish` reports and cannot otherwise reach.
     Initialized {
         salt: vector<u8>,
     },
-    /// Published and immutable.
     Published,
 }
 
 // === Events ===
 
-/// Emitted once when a release is published: its identity, admin cap, full
-/// tracklist and the creator's salt. Track compositions are not repeated: join
-/// each recording ID to its `RecordingPublishedEvent`.
+/// Track compositions are not repeated: join each recording ID to its
+/// `RecordingPublishedEvent`.
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
     admin_cap_id: ID,
@@ -118,15 +100,14 @@ public use fun consent_recording_id as ReleaseConsent.recording_id;
 
 // === Public Functions ===
 
-/// Creates and shares the one canonical registry. There is no production
-/// constructor: this object is the permanent namespace every release commits to.
+/// There is no production constructor: this object is the permanent namespace
+/// every release commits to.
 fun init(ctx: &mut TxContext) {
     transfer::share_object(ReleaseRegistry { id: object::new(ctx) });
 }
 
-/// Consents to including the recording in a release, authorized by the
-/// recording's admin cap. Consent may be discarded or stored by an
-/// extension; `new` consumes it without retaining its release ID.
+/// Consent may be discarded or stored by an extension; `new` consumes it
+/// without retaining its release ID.
 public fun consent<RecordingShare>(
     recording: &Recording<RecordingShare>,
     _: &RecordingAdminCap<RecordingShare>,
@@ -135,14 +116,9 @@ public fun consent<RecordingShare>(
     ReleaseConsent { release_id, recording_id: object::id(recording) }
 }
 
-/// Assembles a release under the canonical registry. Permissionless: consent
-/// comes from recording-admin consents for this exact derived ID. Returns
-/// the release and admin cap by value so `publish` can follow in the same
-/// PTB. Aborts with `ENoTracks` on an empty tracklist, `ETooManyTracks`
-/// above `MAX_TRACKS` and `EDuplicateRecording` if a recording repeats;
-/// claiming an already-claimed digest aborts in `derived_object`. Each consent
-/// must match the derived release ID; its release ID is discarded when
-/// unwrapped.
+/// Permissionless: authorization comes from recording-admin consents for this
+/// exact derived ID. Returns by value so `publish` can follow in the same PTB.
+/// Claiming an already-claimed digest aborts in `derived_object`.
 public fun new(
     self: &mut ReleaseRegistry,
     consents: vector<ReleaseConsent>,
@@ -177,9 +153,6 @@ public fun new(
     (release, release_admin_cap)
 }
 
-/// Publishes the release: shares it and emits `ReleasePublishedEvent`. Aborts
-/// with `EUnauthorized` on a mismatched cap and `ENotInitializedState` unless
-/// `Initialized`.
 public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
 
@@ -204,15 +177,14 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
     }
 }
 
-/// Verifies that the admin capability matches this release.
 public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
     assert!(object::id(self) == cap.release_id, EUnauthorized);
 }
 
 // === View Functions ===
 
-/// The address `new` would claim for this tracklist and salt. Not proof
-/// that the release exists. Read-only registry access, so it parallelizes.
+/// Not proof that the release exists. Read-only registry access, so it
+/// parallelizes.
 public fun derive_address(
     self: &ReleaseRegistry,
     recording_ids: vector<ID>,
@@ -224,35 +196,29 @@ public fun derive_address(
     )
 }
 
-/// The release authorized by a consent.
 public fun consent_release_id(consent: &ReleaseConsent): ID {
     consent.release_id
 }
 
-/// The recording committed to by a consent.
 public fun consent_recording_id(consent: &ReleaseConsent): ID {
     consent.recording_id
 }
 
-/// The release controlled by an admin cap.
 public fun release_id(cap: &ReleaseAdminCap): ID {
     cap.release_id
 }
 
-/// The ordered tracklist of recording IDs.
 public fun recording_ids(self: &Release): &vector<ID> {
     &self.recording_ids
 }
 
-/// Read access to the release's UID (dynamic fields).
 public fun uid(self: &Release): &UID {
     &self.id
 }
 
 // === Admin Functions ===
 
-/// Mutable access to the release's UID, gated by the admin cap. Works in any
-/// lifecycle state; see `composition::uid_mut` for the trust model.
+/// Works in any lifecycle state; see `composition::uid_mut` for the trust model.
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
     self.authorize(cap);
     &mut self.id
@@ -260,8 +226,7 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 
 // === Private Functions ===
 
-/// Aborts with `EDuplicateRecording` if a recording ID repeats: a sorted copy
-/// is strictly increasing exactly when every ID is distinct.
+/// A sorted copy is strictly increasing exactly when every ID is distinct.
 fun assert_distinct(recording_ids: &vector<ID>) {
     let mut keys = recording_ids.map_ref!(|id| id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);
@@ -269,7 +234,7 @@ fun assert_distinct(recording_ids: &vector<ID>) {
 }
 
 /// `blake2b256(bcs(recording_ids) ‖ bcs(salt))`, the key of the release's
-/// derived id. Aborts with `EInvalidSaltLength` unless the salt is 32 bytes.
+/// derived id.
 fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
     assert!(salt.length() == SALT_LENGTH, EInvalidSaltLength);
     let mut hash_input = to_bytes(recording_ids);
@@ -279,14 +244,11 @@ fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
 
 // === Test Functions ===
 
-/// Runs the real module initializer, creating and sharing the canonical
-/// registry.
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
     init(ctx);
 }
 
-/// Creates an unshared registry for pure validation and derivation tests.
 #[test_only]
 public fun new_registry_for_testing(ctx: &mut TxContext): ReleaseRegistry {
     ReleaseRegistry { id: object::new(ctx) }
@@ -300,8 +262,6 @@ public fun release_digest_for_testing(
     release_digest(recording_ids, salt)
 }
 
-/// Unpacks a `ReleasePublishedEvent` (fields are module-private) for test
-/// assertions.
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,

@@ -1,8 +1,6 @@
 // Copyright (c) Miso Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// Production constructors: the full publish flow through the share-coin
-/// templates, and every `share::mint` check as configured by core.
 #[test_only]
 module miso_music::production_constructor_tests;
 
@@ -46,8 +44,6 @@ const ARTIST: address = @0xA2;
 
 // === Template flow ===
 
-/// Publish (init ticket), `initialize_currency`, then `new` + `publish` in a
-/// later transaction, for a composition and a recording of it.
 #[test]
 fun templates_create_composition_and_recording() {
     let mut scenario = test_scenario::begin(SYSTEM);
@@ -55,7 +51,6 @@ fun templates_create_composition_and_recording() {
     composition::init_for_testing(scenario.ctx());
     recording::init_for_testing(scenario.ctx());
 
-    // Tx 1 (SONGWRITER): publish the template, then initialize the currency.
     scenario.next_tx(SONGWRITER);
     composition_template::init_for_testing(scenario.ctx());
     scenario.next_tx(SONGWRITER);
@@ -64,7 +59,6 @@ fun templates_create_composition_and_recording() {
     let treasury_cap = ticket.initialize_currency(&mut registry, scenario.ctx());
     test_scenario::return_shared(registry);
 
-    // Tx 2 (SONGWRITER): create and publish the composition.
     scenario.next_tx(SONGWRITER);
     let mut currency = scenario.take_shared<Currency<CompositionShare>>();
     let mut composition_registry = scenario.take_shared<CompositionRegistry>();
@@ -92,7 +86,6 @@ fun templates_create_composition_and_recording() {
     transfer::public_transfer(comp_cap, SONGWRITER);
     destroy(shares);
 
-    // Tx 3-4 (ARTIST): recording template, then the recording.
     scenario.next_tx(ARTIST);
     recording_template::init_for_testing(scenario.ctx());
     scenario.next_tx(ARTIST);
@@ -131,7 +124,6 @@ fun templates_create_composition_and_recording() {
     transfer::public_transfer(rec_cap, ARTIST);
     destroy(shares);
 
-    // Later: the caps still open their works' UIDs.
     scenario.next_tx(ARTIST);
     let mut rec = scenario.take_shared<Recording<RecordingShare>>();
     let rec_cap = scenario.take_from_sender<RecordingAdminCap<RecordingShare>>();
@@ -150,7 +142,6 @@ fun templates_create_composition_and_recording() {
 
 // === share::mint checks ===
 
-/// Runs `composition::new` on a fixture currency and cleans up on success.
 fun new_composition<Share: key>(
     mut currency: Currency<Share>,
     treasury_cap: TreasuryCap<Share>,
@@ -192,7 +183,6 @@ fun wrong_module_name_rejected() {
     new_composition(currency, treasury_cap, registry, ctx);
 }
 
-/// A composition share currency can't back a recording.
 #[test, expected_failure(abort_code = share::EInvalidType)]
 fun composition_type_rejected_for_recording() {
     let ctx = &mut tx_context::dummy();

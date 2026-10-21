@@ -21,8 +21,6 @@ fun new_composition() {
     destroy(cap);
 }
 
-/// `publish` shares the composition: publish in one transaction, re-fetch it
-/// via `take_shared` in the next.
 #[test]
 fun publish_composition() {
     let mut scenario = test_scenario::begin(OWNER);

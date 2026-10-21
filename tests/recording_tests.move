@@ -11,8 +11,6 @@ use miso_music::test_helpers::{Self, RecordingShare};
 
 const OWNER: address = @0xA1;
 
-/// `publish` shares the recording: publish in one transaction, re-fetch it
-/// via `take_shared` in the next.
 #[test]
 fun publish_recording() {
     let mut scenario = test_scenario::begin(OWNER);

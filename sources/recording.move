@@ -33,15 +33,11 @@ const SHARE_SUPPLY: u64 = 100_000_000_000_000;
 
 // === Structs ===
 
-/// An audio recording of a composition.
 public struct Recording<phantom RecordingShare> has key {
     id: UID,
-    /// The parent composition identity.
     composition_id: ID,
 }
 
-/// Authorizes admin operations on the one recording of its share type.
-/// Its address is derived from the recording under `RecordingAdminCapKey`.
 public struct RecordingAdminCap<phantom RecordingShare> has key, store {
     id: UID,
 }
@@ -52,15 +48,12 @@ public struct RecordingRegistry has key {
     id: UID,
 }
 
-/// Derivation key for the recording of a share type.
 public struct RecordingKey<phantom RecordingShare>() has copy, drop, store;
 
-/// Derivation key for `RecordingAdminCap`.
 public struct RecordingAdminCapKey() has copy, drop, store;
 
 // === Events ===
 
-/// Emitted once when the recording is published.
 public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
     recording_id: ID,
     composition_id: ID,
@@ -73,9 +66,8 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(RecordingRegistry { id: object::new(ctx) });
 }
 
-/// Creates a recording of `composition` and its admin cap from a fresh
-/// `<package>::recording_share::RecordingShare` currency, returning the full
-/// share supply. See `share::mint` for the checks.
+/// `RecordingShare` must be a fresh `<package>::recording_share::RecordingShare`
+/// currency; see `share::mint` for the checks.
 public fun new<RecordingShare: key, CompositionShare>(
     registry: &mut RecordingRegistry,
     composition: &Composition<CompositionShare>,
@@ -101,7 +93,6 @@ public fun new<RecordingShare: key, CompositionShare>(
     (recording, cap, shares)
 }
 
-/// Publishes the recording by sharing it.
 public fun publish<RecordingShare>(
     self: Recording<RecordingShare>,
     cap: &RecordingAdminCap<RecordingShare>,
@@ -118,25 +109,22 @@ public fun publish<RecordingShare>(
 
 // === View Functions ===
 
-/// The address of the recording of `RecordingShare`. Not proof that it exists.
+/// Not proof that the recording exists.
 public fun derive_address<RecordingShare>(registry: &RecordingRegistry): address {
     derived_object::derive_address(object::id(registry), RecordingKey<RecordingShare>())
 }
 
-/// The parent composition's object ID, immutable since `new`.
 public fun composition_id<RecordingShare>(self: &Recording<RecordingShare>): ID {
     self.composition_id
 }
 
-/// Read access to the recording's UID (dynamic fields).
 public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
     &self.id
 }
 
 // === Admin Functions ===
 
-/// Mutable access to the recording's UID, gated by the admin cap. See
-/// `composition::uid_mut` for the trust model.
+/// See `composition::uid_mut` for the trust model.
 public fun uid_mut<RecordingShare>(
     self: &mut Recording<RecordingShare>,
     _: &RecordingAdminCap<RecordingShare>,
@@ -164,8 +152,6 @@ macro fun new_internal<$RecordingShare>(
 
 // === Test Functions ===
 
-/// Creates a recording without a currency, for tests that don't exercise
-/// shares.
 #[test_only]
 public fun new_for_testing<RecordingShare>(
     composition_id: ID,
@@ -174,20 +160,16 @@ public fun new_for_testing<RecordingShare>(
     new_internal!<RecordingShare>(object::new(ctx), composition_id)
 }
 
-/// Runs the real module initializer, creating and sharing the registry.
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
     init(ctx);
 }
 
-/// Creates an unshared registry for tests.
 #[test_only]
 public fun new_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
     RecordingRegistry { id: object::new(ctx) }
 }
 
-/// Unpacks a `RecordingPublishedEvent` (fields are module-private) for test
-/// assertions.
 #[test_only]
 public fun recording_published_event_fields<RecordingShare>(
     event: RecordingPublishedEvent<RecordingShare>,

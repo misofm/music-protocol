@@ -11,8 +11,6 @@ use sui::event;
 use miso_music::release;
 use miso_music::test_helpers;
 
-/// Publishing a release at `MAX_TRACKS` emits a single `ReleasePublishedEvent`
-/// carrying the full tracklist in order.
 #[test]
 fun release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();

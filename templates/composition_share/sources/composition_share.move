@@ -14,13 +14,12 @@ use sui::coin_registry::{Self, CoinRegistry};
 
 // === Structs ===
 
-/// The composition's share coin type. Never instantiated.
+/// Never instantiated.
 public struct CompositionShare has key {
     id: UID,
 }
 
-/// Authorizes the single `initialize_currency` call. Transferable, so
-/// uninitialized packages can be handed off.
+/// Transferable, so uninitialized packages can be handed off.
 public struct InitializeCurrencyTicket has key, store {
     id: UID,
 }
@@ -33,8 +32,7 @@ fun init(ctx: &mut TxContext) {
 
 // === Public Functions ===
 
-/// Registers the currency with locked canonical metadata and returns its
-/// treasury cap. Supply stays zero until `miso_music::composition::new`.
+/// Supply stays zero until `miso_music::composition::new`.
 public fun initialize_currency(
     ticket: InitializeCurrencyTicket,
     registry: &mut CoinRegistry,
