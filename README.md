@@ -26,7 +26,7 @@ the package address differs between works.
 
 1. Publish the template. `init` sends the publisher a one-time, transferable
    `InitializeCurrencyTicket`.
-2. `initialize_currency(ticket, &mut CoinRegistry)` registers the currency, deletes its
+2. `initialize_currency(&mut CoinRegistry, ticket)` registers the currency, deletes its
    metadata cap and returns the `TreasuryCap`.
 3. In a later transaction, `composition::new` (or `recording::new`) consumes the
    treasury cap, mints the full supply to the caller and fixes it.
@@ -66,7 +66,7 @@ let (composition, composition_cap, composition_shares) = composition::new(
     &mut composition_registry, &mut composition_currency, composition_treasury_cap,
 );
 let (recording, recording_cap, recording_shares) = recording::new(
-    &mut recording_registry, &composition, &mut recording_currency, recording_treasury_cap,
+    &mut recording_registry, &mut recording_currency, recording_treasury_cap, &composition,
 );
 
 composition.publish(&composition_cap);

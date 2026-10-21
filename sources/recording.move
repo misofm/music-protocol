@@ -70,9 +70,9 @@ fun init(ctx: &mut TxContext) {
 /// currency; see `share::mint` for the checks.
 public fun new<RecordingShare: key, CompositionShare>(
     registry: &mut RecordingRegistry,
-    composition: &Composition<CompositionShare>,
     currency: &mut Currency<RecordingShare>,
     treasury_cap: TreasuryCap<RecordingShare>,
+    composition: &Composition<CompositionShare>,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
     let shares = share::mint(
         currency,

@@ -34,8 +34,8 @@ fun init(ctx: &mut TxContext) {
 
 /// Supply stays zero until `miso_music::recording::new`.
 public fun initialize_currency(
-    ticket: InitializeCurrencyTicket,
     registry: &mut CoinRegistry,
+    ticket: InitializeCurrencyTicket,
     ctx: &mut TxContext,
 ): TreasuryCap<RecordingShare> {
     let InitializeCurrencyTicket { id } = ticket;

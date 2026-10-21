@@ -120,7 +120,7 @@ public fun consent<RecordingShare>(
 /// exact derived ID. Returns by value so `publish` can follow in the same PTB.
 /// Claiming an already-claimed digest aborts in `derived_object`.
 public fun new(
-    self: &mut ReleaseRegistry,
+    registry: &mut ReleaseRegistry,
     consents: vector<ReleaseConsent>,
     salt: vector<u8>,
 ): (Release, ReleaseAdminCap) {
@@ -136,7 +136,7 @@ public fun new(
     assert_distinct(&recording_ids);
 
     let mut release = Release {
-        id: claim(&mut self.id, ReleaseKey(release_digest(&recording_ids, &salt))),
+        id: claim(&mut registry.id, ReleaseKey(release_digest(&recording_ids, &salt))),
         state: ReleaseState::Initialized { salt },
         recording_ids,
     };
@@ -186,12 +186,12 @@ public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
 /// Not proof that the release exists. Read-only registry access, so it
 /// parallelizes.
 public fun derive_address(
-    self: &ReleaseRegistry,
+    registry: &ReleaseRegistry,
     recording_ids: vector<ID>,
     salt: vector<u8>,
 ): address {
     derived_object::derive_address(
-        self.id.to_inner(),
+        registry.id.to_inner(),
         ReleaseKey(release_digest(&recording_ids, &salt)),
     )
 }

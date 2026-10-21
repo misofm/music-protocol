@@ -56,7 +56,11 @@ fun templates_create_composition_and_recording() {
     scenario.next_tx(SONGWRITER);
     let ticket = scenario.take_from_sender<CompositionTicket>();
     let mut registry = scenario.take_shared<CoinRegistry>();
-    let treasury_cap = ticket.initialize_currency(&mut registry, scenario.ctx());
+    let treasury_cap = composition_template::initialize_currency(
+        &mut registry,
+        ticket,
+        scenario.ctx(),
+    );
     test_scenario::return_shared(registry);
 
     scenario.next_tx(SONGWRITER);
@@ -91,7 +95,11 @@ fun templates_create_composition_and_recording() {
     scenario.next_tx(ARTIST);
     let ticket = scenario.take_from_sender<RecordingTicket>();
     let mut registry = scenario.take_shared<CoinRegistry>();
-    let treasury_cap = ticket.initialize_currency(&mut registry, scenario.ctx());
+    let treasury_cap = recording_template::initialize_currency(
+        &mut registry,
+        ticket,
+        scenario.ctx(),
+    );
     test_scenario::return_shared(registry);
 
     scenario.next_tx(ARTIST);
@@ -100,9 +108,9 @@ fun templates_create_composition_and_recording() {
     let mut recording_registry = scenario.take_shared<RecordingRegistry>();
     let (rec, rec_cap, shares) = recording::new(
         &mut recording_registry,
-        &comp,
         &mut currency,
         treasury_cap,
+        &comp,
     );
     let recording_id = object::id(&rec);
     assert_eq!(
@@ -192,9 +200,9 @@ fun composition_type_rejected_for_recording() {
     let mut recording_registry = recording::new_registry_for_testing(ctx);
     let (rec, rec_cap, shares) = recording::new(
         &mut recording_registry,
-        &comp,
         &mut currency,
         treasury_cap,
+        &comp,
     );
     destroy(comp);
     destroy(comp_cap);
