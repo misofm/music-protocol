@@ -142,13 +142,38 @@ Core objects are key-only and must be published in their creating transaction.
 Publication shares the object and freezes its embedded relationships. Authorized
 extension access remains available afterward.
 
-| Event | Data |
-|---|---|
-| `CompositionPublishedEvent<CompositionShare>` | Composition ID |
-| `RecordingPublishedEvent<RecordingShare>` | Recording ID and composition ID |
-| `ReleasePublishedEvent` | Release ID, ordered recording IDs and creator salt |
+An indexer can build and maintain its index of every core object from these
+events and the transaction envelope alone, with no object reads or RPC calls.
+Core objects have no other indexed state: each event carries every stored
+field, and extension data attached through `uid_mut` is emitted by the
+extension.
 
-A track's position is its index in the recording IDs. Transaction metadata supplies sender and time.
+| Event | Fields | Max size |
+|---|---|---|
+| `CompositionPublishedEvent<CompositionShare>` | `composition_id: ID` | 32 B |
+| `RecordingPublishedEvent<RecordingShare>` | `recording_id: ID`, `composition_id: ID` | 64 B |
+| `ReleasePublishedEvent` | `release_id: ID`, `recording_ids: vector<ID>`, `salt: vector<u8>` | ~32 KB |
+
+A track's position is its index in `recording_ids`. At 1,000 tracks the release
+event is about 32 KB, well under Sui's 250 KiB per-event limit. The share coin
+type is the event's type parameter, and its supply is always the fixed
+100,000,000 shares. Transaction metadata supplies sender and time.
+
+Admin cap IDs are not emitted; they are derived with
+`sui::derived_object::derive_address(parent_id, key)`, i.e.
+`dynamic_field::hash_type_and_key(parent, DerivedObjectKey(key))`:
+
+| Object | Parent | Key |
+|---|---|---|
+| `Composition<CompositionShare>` | `CompositionRegistry` | `CompositionKey<CompositionShare>()` |
+| `CompositionAdminCap<CompositionShare>` | the composition | `CompositionAdminCapKey()` |
+| `Recording<RecordingShare>` | `RecordingRegistry` | `RecordingKey<RecordingShare>()` |
+| `RecordingAdminCap<RecordingShare>` | the recording | `RecordingAdminCapKey()` |
+| `Release` | `ReleaseRegistry` | `ReleaseKey(blake2b256(bcs(recording_ids) ‖ bcs(salt)))` |
+| `ReleaseAdminCap` | the release | `ReleaseAdminCapKey()` |
+
+The registries are `init` singletons and emit no event; their IDs come from the
+publish transaction's object effects.
 
 ## Move conventions
 
