@@ -30,10 +30,10 @@ be created from recording-admin consents. See [README](README.md).
 - **`CompositionAdminCap<T>` / `RecordingAdminCap<T>` holder** (bearer, `key, store`): can
   publish the work, obtain `&mut UID` at any time (`composition.move:106-111`,
   `recording.move:113-118`) and, for recordings, issue `ReleaseConsent`
-  (`release.move:160-166`). Authorization is by type parameter: exactly one work and one cap
+  (`release.move:156-162`). Authorization is by type parameter: exactly one work and one cap
   exist per `T`, both derived (`composition.move:76-78,115-123`, `recording.move:76-79,122-134`).
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
-  `&mut UID`; checked by stored `release_id` (`release.move:142-144,192-195`).
+  `&mut UID`; checked by stored `release_id` (`release.move:188-190,192-195`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
   under the three registries or expose `&mut UID` without a cap. Core has no on-chain
   defence against this; see Operational requirements.
@@ -53,7 +53,7 @@ object, so the cap holder can call `publish` again on the shared object and emit
 `CompositionPublishedEvent` / `RecordingPublishedEvent` with identical fields. Verified in a
 `test_scenario` probe (second tx: one user event, no abort). No state changes; the state enum
 that prevented this was removed deliberately (`f613a89`). Indexers must dedupe by object ID.
-`Release` is not affected (`ENotInitializedState`, `release.move:188`).
+`Release` is not affected (`ENotInitializedState`, `release.move:184`).
 
 **MP-2 · Info · Accepted** — Consents do not bind a creator. `release::new` is permissionless
 (`release.move:85-118`): whoever assembles every `ReleaseConsent` for a release ID in one

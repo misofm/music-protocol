@@ -139,10 +139,6 @@ public fun uid(self: &Release): &UID {
     &self.id
 }
 
-public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
-    assert!(object::id(self) == cap.release_id, EUnauthorized);
-}
-
 public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
     cap.release_id
 }
@@ -187,6 +183,10 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
         },
         _ => abort ENotInitializedState,
     }
+}
+
+public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
+    assert!(object::id(self) == cap.release_id, EUnauthorized);
 }
 
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
