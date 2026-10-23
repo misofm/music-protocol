@@ -55,8 +55,8 @@ that prevented this was removed deliberately (`f613a89`). Indexers must dedupe b
 **MP-2 · Info · Accepted** — Consents do not bind a creator. `release::new` is permissionless
 (`release.move:92-124`): whoever assembles every `ReleaseConsent` for a release ID in one
 transaction receives the `ReleaseAdminCap`. Bare consents cannot leave the transaction
-(`ReleaseConsent` has no `key`), so this only matters for extensions that wrap them; the
-README assigns creator binding and escrow to extensions.
+(`ReleaseConsent` has no `key`), so this only matters for extensions that wrap them;
+creator binding and escrow belong to extensions.
 
 **MP-3 · Info · Accepted** — Core verifies the currency, not the template bytecode.
 `share::is_type` matches only `<any address>::composition_share::CompositionShare` /
