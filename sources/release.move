@@ -103,7 +103,9 @@ public fun new(
         consented_release_ids.push_back(release_id);
         recording_id
     });
-    assert_distinct(&recording_ids);
+    let mut keys = recording_ids.map_ref!(|id| id.to_address().to_u256());
+    keys.merge_sort_by!(|a, b| *a <= *b);
+    assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
 
     let mut release = Release {
         id: claim(&mut registry.id, ReleaseKey(release_digest(&recording_ids, &salt))),
@@ -192,12 +194,6 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
 }
 
 // === Private Functions ===
-
-fun assert_distinct(recording_ids: &vector<ID>) {
-    let mut keys = recording_ids.map_ref!(|id| id.to_address().to_u256());
-    keys.merge_sort_by!(|a, b| *a <= *b);
-    assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
-}
 
 fun release_digest(recording_ids: &vector<ID>, salt: &vector<u8>): vector<u8> {
     assert!(salt.length() == SALT_LENGTH, EInvalidSaltLength);
