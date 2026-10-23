@@ -72,8 +72,8 @@ public struct ReleasePublishedEvent has copy, drop {
 
 // === Method Aliases ===
 
-public use fun consent_release_id as ReleaseConsent.release_id;
-public use fun consent_recording_id as ReleaseConsent.recording_id;
+public use fun release_consent_release_id as ReleaseConsent.release_id;
+public use fun release_consent_recording_id as ReleaseConsent.recording_id;
 
 // === Public Functions ===
 
@@ -166,11 +166,11 @@ public fun derive_address(
     )
 }
 
-public fun consent_release_id(consent: &ReleaseConsent): ID {
+public fun release_consent_release_id(consent: &ReleaseConsent): ID {
     consent.release_id
 }
 
-public fun consent_recording_id(consent: &ReleaseConsent): ID {
+public fun release_consent_recording_id(consent: &ReleaseConsent): ID {
     consent.recording_id
 }
 
