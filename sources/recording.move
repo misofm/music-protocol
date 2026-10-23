@@ -80,20 +80,6 @@ public fun new<RecordingShare: key, CompositionShare>(
     (recording, cap, shares)
 }
 
-public fun publish<RecordingShare>(
-    self: Recording<RecordingShare>,
-    cap: &RecordingAdminCap<RecordingShare>,
-) {
-    let recording_id = object::id(&self);
-    let composition_id = self.composition_id;
-    transfer::share_object(self);
-    emit(RecordingPublishedEvent<RecordingShare> {
-        recording_id,
-        composition_id,
-        admin_cap_id: object::id(cap),
-    });
-}
-
 // === View Functions ===
 
 public fun derive_address<RecordingShare>(registry: &RecordingRegistry): address {
@@ -109,6 +95,20 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 }
 
 // === Admin Functions ===
+
+public fun publish<RecordingShare>(
+    self: Recording<RecordingShare>,
+    cap: &RecordingAdminCap<RecordingShare>,
+) {
+    let recording_id = object::id(&self);
+    let composition_id = self.composition_id;
+    transfer::share_object(self);
+    emit(RecordingPublishedEvent<RecordingShare> {
+        recording_id,
+        composition_id,
+        admin_cap_id: object::id(cap),
+    });
+}
 
 public fun uid_mut<RecordingShare>(
     self: &mut Recording<RecordingShare>,

@@ -79,18 +79,6 @@ public fun new<CompositionShare: key>(
     (composition, cap, shares)
 }
 
-public fun publish<CompositionShare>(
-    self: Composition<CompositionShare>,
-    cap: &CompositionAdminCap<CompositionShare>,
-) {
-    let composition_id = object::id(&self);
-    transfer::share_object(self);
-    emit(CompositionPublishedEvent<CompositionShare> {
-        composition_id,
-        admin_cap_id: object::id(cap),
-    });
-}
-
 // === View Functions ===
 
 public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
@@ -102,6 +90,18 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 }
 
 // === Admin Functions ===
+
+public fun publish<CompositionShare>(
+    self: Composition<CompositionShare>,
+    cap: &CompositionAdminCap<CompositionShare>,
+) {
+    let composition_id = object::id(&self);
+    transfer::share_object(self);
+    emit(CompositionPublishedEvent<CompositionShare> {
+        composition_id,
+        admin_cap_id: object::id(cap),
+    });
+}
 
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,

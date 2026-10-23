@@ -5,7 +5,8 @@ package (`composition`, `recording`, `release`), the share templates
 `templates/composition_share` and `templates/recording_share`, and the pinned dependency
 `share::share::mint` (misofm/share `4cdd365`) that core's currency checks rely on. Later commits
 only inline `assert_distinct` into `release::new`, rename and reorder getters, and add method
-aliases; line references are to the current code.
+aliases. Later commits only apply naming and ordering standards; line references are to
+the current code.
 
 ## What it does
 
@@ -29,10 +30,10 @@ be created from recording-admin consents. See [README](README.md).
 - **`CompositionAdminCap<T>` / `RecordingAdminCap<T>` holder** (bearer, `key, store`): can
   publish the work, obtain `&mut UID` at any time (`composition.move:106-111`,
   `recording.move:113-118`) and, for recordings, issue `ReleaseConsent`
-  (`release.move:85-91`). Authorization is by type parameter: exactly one work and one cap
+  (`release.move:160-166`). Authorization is by type parameter: exactly one work and one cap
   exist per `T`, both derived (`composition.move:76-78,115-123`, `recording.move:76-79,122-134`).
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
-  `&mut UID`; checked by stored `release_id` (`release.move:153-155,192-195`).
+  `&mut UID`; checked by stored `release_id` (`release.move:142-144,192-195`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
   under the three registries or expose `&mut UID` without a cap. Core has no on-chain
   defence against this; see Operational requirements.
@@ -47,15 +48,15 @@ be created from recording-admin consents. See [README](README.md).
 
 **MP-1 · Low · Accepted** — Composition and recording `publish` is repeatable. `publish`
 takes the object by value and calls `transfer::share_object`
-(`composition.move:82-92`, `recording.move:83-95`); Sui allows re-sharing an already shared
+(`composition.move:94-104`, `recording.move:99-111`); Sui allows re-sharing an already shared
 object, so the cap holder can call `publish` again on the shared object and emit a second
 `CompositionPublishedEvent` / `RecordingPublishedEvent` with identical fields. Verified in a
 `test_scenario` probe (second tx: one user event, no abort). No state changes; the state enum
 that prevented this was removed deliberately (`f613a89`). Indexers must dedupe by object ID.
-`Release` is not affected (`ENotInitializedState`, `release.move:149`).
+`Release` is not affected (`ENotInitializedState`, `release.move:188`).
 
 **MP-2 · Info · Accepted** — Consents do not bind a creator. `release::new` is permissionless
-(`release.move:93-126`): whoever assembles every `ReleaseConsent` for a release ID in one
+(`release.move:85-118`): whoever assembles every `ReleaseConsent` for a release ID in one
 transaction receives the `ReleaseAdminCap`. Bare consents cannot leave the transaction
 (`ReleaseConsent` has no `key`), so this only matters for extensions that wrap them;
 creator binding and escrow belong to extensions.
@@ -70,7 +71,7 @@ so they hold regardless of the bytecode. The README's "publish the template unch
 tooling guidance, not an on-chain property.
 
 **MP-4 · Info · Open** — `ReleaseAdminCap.release_id` is stored although the cap ID is derived
-from the release (`release.move:37-40,121-124`). `authorize` could compare
+from the release (`release.move:37-40,113-116`). `authorize` could compare
 `derived_object::derive_address(object::id(release), ReleaseAdminCapKey())` with the cap ID
 instead. Storage-only; no security impact.
 
@@ -82,7 +83,7 @@ size limit. Releases near the cap must gather consents over several transactions
 wrapping extension.
 
 **MP-6 · Info · Open** — All creations serialize on one shared registry per kind
-(`composition.move:56`, `recording.move:59`, `release.move:94`). Throughput of
+(`composition.move:56`, `recording.move:59`, `release.move:86`). Throughput of
 `composition::new`, `recording::new` and `release::new` is bounded by consensus sequencing
 of that object. `derive_address` reads only.
 
@@ -109,20 +110,20 @@ unusable address.
   `unlocked_metadata_rejected`.
 - **Currency registration is module-bound.** `coin_registry::new_currency<T>` on a foreign
   type fails the Sui verifier (`ESC02010`), so only the template's `initialize_currency`
-  (`*_share.move:29-47`) can register a template's type, and only once (`ECurrencyAlreadyExists`).
+  (`*_share.move:27-45`) can register a template's type, and only once (`ECurrencyAlreadyExists`).
 - **Money.** Exactly `SHARE_SUPPLY = 10^14` base units are minted into the returned `Balance`
   (`composition.move:22,64-75`); no later mint, burn or rounding path exists in core.
 - **Release ID commitment.** `release_digest` hashes `bcs(vector<ID>) ‖ bcs(salt)` with the
   salt length fixed at 32 (`release.move:199-204`); both prefixes are ULEB lengths so the
   encoding is injective. Reference digests and salt-length aborts are tested
   (`release_digest_tests`). Every consent's `release_id` must equal the claimed derived ID
-  (`release.move:117-119`), binding membership and order.
+  (`release.move:109-111`), binding membership and order.
 - **Consent single use.** A derived release ID is claimable once (`duplicate_digest_aborts`),
   `ReleaseConsent` has no `copy`, and only `release::new` unpacks it, so a consent cannot be
   replayed into a second release.
 - **Distinctness.** `release::new` sorts the u256 forms and requires strict ascending order
-  (`release.move:107-109`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
-  `ETooManyTracks` precedes it, bounding the sort at 1,000 (`release.move:98-99`).
+  (`release.move:99-101`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
+  `ETooManyTracks` precedes it, bounding the sort at 1,000 (`release.move:90-91`).
 - **Abort order in `release::new`.** `ENoTracks` → `ETooManyTracks` → `EDuplicateRecording`
   → `EInvalidSaltLength` → `derived_object::EObjectAlreadyExists` → `EUnauthorizedAssignment`.
   All reachable; each has a test.

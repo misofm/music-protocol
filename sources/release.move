@@ -82,14 +82,6 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(ReleaseRegistry { id: object::new(ctx) });
 }
 
-public fun consent<RecordingShare>(
-    recording: &Recording<RecordingShare>,
-    _: &RecordingAdminCap<RecordingShare>,
-    release_id: ID,
-): ReleaseConsent {
-    ReleaseConsent { release_id, recording_id: object::id(recording) }
-}
-
 public fun new(
     registry: &mut ReleaseRegistry,
     consents: vector<ReleaseConsent>,
@@ -126,6 +118,53 @@ public fun new(
     (release, release_admin_cap)
 }
 
+// === View Functions ===
+
+public fun derive_address(
+    registry: &ReleaseRegistry,
+    recording_ids: vector<ID>,
+    salt: vector<u8>,
+): address {
+    derived_object::derive_address(
+        registry.id.to_inner(),
+        ReleaseKey(release_digest(&recording_ids, &salt)),
+    )
+}
+
+public fun recording_ids(self: &Release): &vector<ID> {
+    &self.recording_ids
+}
+
+public fun uid(self: &Release): &UID {
+    &self.id
+}
+
+public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
+    assert!(object::id(self) == cap.release_id, EUnauthorized);
+}
+
+public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
+    cap.release_id
+}
+
+public fun release_consent_release_id(consent: &ReleaseConsent): ID {
+    consent.release_id
+}
+
+public fun release_consent_recording_id(consent: &ReleaseConsent): ID {
+    consent.recording_id
+}
+
+// === Admin Functions ===
+
+public fun consent<RecordingShare>(
+    recording: &Recording<RecordingShare>,
+    _: &RecordingAdminCap<RecordingShare>,
+    release_id: ID,
+): ReleaseConsent {
+    ReleaseConsent { release_id, recording_id: object::id(recording) }
+}
+
 public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
 
@@ -149,45 +188,6 @@ public fun publish(mut self: Release, cap: &ReleaseAdminCap) {
         _ => abort ENotInitializedState,
     }
 }
-
-public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
-    assert!(object::id(self) == cap.release_id, EUnauthorized);
-}
-
-// === View Functions ===
-
-public fun derive_address(
-    registry: &ReleaseRegistry,
-    recording_ids: vector<ID>,
-    salt: vector<u8>,
-): address {
-    derived_object::derive_address(
-        registry.id.to_inner(),
-        ReleaseKey(release_digest(&recording_ids, &salt)),
-    )
-}
-
-public fun recording_ids(self: &Release): &vector<ID> {
-    &self.recording_ids
-}
-
-public fun uid(self: &Release): &UID {
-    &self.id
-}
-
-public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
-    cap.release_id
-}
-
-public fun release_consent_release_id(consent: &ReleaseConsent): ID {
-    consent.release_id
-}
-
-public fun release_consent_recording_id(consent: &ReleaseConsent): ID {
-    consent.recording_id
-}
-
-// === Admin Functions ===
 
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
     self.authorize(cap);

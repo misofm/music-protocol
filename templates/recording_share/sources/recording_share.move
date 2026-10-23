@@ -18,13 +18,11 @@ public struct InitializeCurrencyTicket has key, store {
     id: UID,
 }
 
-// === Initializer ===
+// === Public Functions ===
 
 fun init(ctx: &mut TxContext) {
     transfer::transfer(InitializeCurrencyTicket { id: object::new(ctx) }, ctx.sender());
 }
-
-// === Public Functions ===
 
 public fun initialize_currency(
     registry: &mut CoinRegistry,
