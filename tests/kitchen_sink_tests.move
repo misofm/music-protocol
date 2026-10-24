@@ -12,17 +12,12 @@ use miso_music::test_helpers;
 #[test]
 fun release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
     let track_count = release::max_tracks();
-    let recording_ids = vector::tabulate!(track_count, |_| test_helpers::fake_id(ctx));
-
-    let salt = test_helpers::salt(7);
-    let predicted_release_id = registry.derive_address(recording_ids, salt).to_id();
-    let tracks = vector::tabulate!(track_count, |index| release::consent_for_testing(
-        recording_ids[index],
-        predicted_release_id,
-    ));
-    let (rel, rel_cap) = registry.new(tracks, salt);
+    let tracks = vector::tabulate!(track_count, |_| {
+        release::track_for_testing(test_helpers::fake_id(ctx))
+    });
+    let (rel, rel_cap) = release::new(tracks, ctx);
+    let release_id = object::id(&rel);
 
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
@@ -31,12 +26,9 @@ fun release_published_event_at_max_tracks() {
     destroy(rel_cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_admin_cap_id, event_recording_ids, event_salt) =
+    let (event_release_id, event_admin_cap_id, event_tracks) =
         release::release_published_event_fields(published_events.pop_back());
-    assert_eq!(event_release_id, predicted_release_id);
+    assert_eq!(event_release_id, release_id);
     assert_eq!(event_admin_cap_id, rel_cap_id);
-    assert_eq!(event_recording_ids, recording_ids);
-    assert_eq!(event_salt, salt);
-
-    destroy(registry);
+    assert_eq!(event_tracks, tracks);
 }

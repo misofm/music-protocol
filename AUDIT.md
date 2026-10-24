@@ -4,22 +4,25 @@ Audited at `1538d77035c4fb6b45b74f7d85168b7c3a80564b` (2026-10-21). Covers the `
 package (`composition`, `recording`, `release`), the share templates
 `templates/composition_share` and `templates/recording_share`, and the pinned dependency
 `share::share::mint` (misofm/share `4cdd365`) that core's currency checks rely on. Later commits
-only inline `assert_distinct` into `release::new`, rename and reorder getters, and add method
-aliases. Later commits only apply naming and ordering standards; line references are to
-the current code.
+inline `assert_distinct` into `release::new`, rename and reorder getters, add method aliases and
+apply naming and ordering standards. The commit "Let anyone create a release from Track proofs"
+(2026-10-24) then removed the release consent layer: `ReleaseConsent`, the release registry, the
+salt, the derived release ID and `ReleaseState`. Every statement about `release` below was
+re-checked against that code. Line references are to the current code.
 
 ## What it does
 
-Identity and release-consent core: one `Composition<CompositionShare>` and one
-`Recording<RecordingShare>` per share coin type, each backed by a fixed 100M-share currency,
-and `Release` objects whose IDs commit to an ordered tracklist plus a salt and which can only
-be created from recording-admin consents. See [README](README.md).
+Identity core: one `Composition<CompositionShare>` and one `Recording<RecordingShare>` per
+share coin type, each backed by a fixed 100M-share currency, and `Release` objects holding an
+ordered tracklist of `Track` values that anyone can create from existing recordings. See
+[README](README.md).
 
 ## Trust model
 
 - **Anyone** may publish a share template, register its currency, create a composition or
-  recording (`composition::new`, `recording::new`), consent-collect and create a release
-  (`release::new`), and read every object (`uid`, `derive_address`, getters).
+  recording (`composition::new`, `recording::new`), create a release of any recordings
+  (`release::new_track`, `release::new`), and read every object (`uid`, `derive_address`,
+  getters).
 - **Share package publisher** holds `InitializeCurrencyTicket` (`key, store`, transferable);
   it is the only path to `coin_registry::new_currency<T>` for that type because the Sui
   verifier rejects `new_currency` on a type from another module (checked: a probe calling it
@@ -28,19 +31,20 @@ be created from recording-admin consents. See [README](README.md).
   `share::mint` consumes the cap and fixes supply, so there is at most one work per type and
   no later minting (`share.move:31-61`).
 - **`CompositionAdminCap<T>` / `RecordingAdminCap<T>` holder** (bearer, `key, store`): can
-  publish the work, obtain `&mut UID` at any time (`composition.move:106-111`,
-  `recording.move:113-118`) and, for recordings, issue `ReleaseConsent`
-  (`release.move:156-162`). Authorization is by type parameter: exactly one work and one cap
+  publish the work and obtain `&mut UID` at any time (`composition.move:106-111`,
+  `recording.move:113-118`). A recording admin has no say over which releases include the
+  recording. Authorization is by type parameter: exactly one work and one cap
   exist per `T`, both derived (`composition.move:76-78,115-123`, `recording.move:76-79,122-134`).
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
-  `&mut UID`; checked by stored `release_id` (`release.move:188-190,192-195`).
+  `&mut UID`; checked by stored `release_id` (`release.move:95-96,103-110`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
-  under the three registries or expose `&mut UID` without a cap. Core has no on-chain
+  under the two registries, construct `Track` values without a recording, or expose `&mut UID`
+  without a cap. Core has no on-chain
   defence against this; see Operational requirements.
 - **Nobody** can: construct a registry after `init` (`composition.move:51-53`,
-  `recording.move:54-56`, `release.move:81-83`); mutate a registry UID; change
-  `Recording.composition_id` or `Release.recording_ids`; unpack a `ReleaseConsent` outside
-  `release::new`; mint shares after creation; re-regulate or edit the currency metadata
+  `recording.move:54-56`); mutate a registry UID; change `Recording.composition_id` or
+  `Release.tracks`; construct a `Track` except from a `&Recording` (`release.move:53-55`); mint
+  shares after creation; re-regulate or edit the currency metadata
   (metadata cap deleted; `make_regulated` is initializer-only and no `DenyCapV2<T>` can
   exist for a `key` type); delete a work, release or cap; or recover a lost cap.
 
@@ -53,13 +57,9 @@ object, so the cap holder can call `publish` again on the shared object and emit
 `CompositionPublishedEvent` / `RecordingPublishedEvent` with identical fields. Verified in a
 `test_scenario` probe (second tx: one user event, no abort). No state changes; the state enum
 that prevented this was removed deliberately (`f613a89`). Indexers must dedupe by object ID.
-`Release` is not affected (`ENotInitializedState`, `release.move:184`).
-
-**MP-2 · Info · Accepted** — Consents do not bind a creator. `release::new` is permissionless
-(`release.move:85-118`): whoever assembles every `ReleaseConsent` for a release ID in one
-transaction receives the `ReleaseAdminCap`. Bare consents cannot leave the transaction
-(`ReleaseConsent` has no `key`), so this only matters for extensions that wrap them;
-creator binding and escrow belong to extensions.
+Release `publish` is repeatable the same way since `ReleaseState` was removed
+(`release.move:95-101`): a second `ReleasePublishedEvent` with identical fields
+(`release_publish_twice_emits_again`).
 
 **MP-3 · Info · Accepted** — Core verifies the currency, not the template bytecode.
 `share::is_type` matches only `<any address>::composition_share::CompositionShare` /
@@ -71,21 +71,15 @@ so they hold regardless of the bytecode. The README's "publish the template unch
 tooling guidance, not an on-chain property.
 
 **MP-4 · Info · Open** — `ReleaseAdminCap.release_id` is stored although the cap ID is derived
-from the release (`release.move:37-40,113-116`). `authorize` could compare
+from the release (`release.move:27-30,67-70`). `authorize` could compare
 `derived_object::derive_address(object::id(release), ReleaseAdminCapKey())` with the cap ID
 instead. Storage-only; no security impact.
 
-**MP-5 · Info · Open** — Single-transaction consent collection is bounded by transaction
-limits, not by `MAX_TRACKS`. A 1,000-track release collected in one PTB needs ~1,000
-`consent` calls plus `new` and `publish` (under the 1,024-command limit) but ~2,001 object
-inputs (1,000 shared recordings, 1,000 caps, the registry) and a transaction near the 128 KiB
-size limit. Releases near the cap must gather consents over several transactions through a
-wrapping extension.
-
-**MP-6 · Info · Open** — All creations serialize on one shared registry per kind
-(`composition.move:56`, `recording.move:59`, `release.move:86`). Throughput of
-`composition::new`, `recording::new` and `release::new` is bounded by consensus sequencing
-of that object. `derive_address` reads only.
+**MP-6 · Info · Open** — Composition and recording creations serialize on one shared registry
+per kind (`composition.move:56`, `recording.move:59`). Throughput of `composition::new` and
+`recording::new` is bounded by consensus sequencing of that object. `derive_address` reads
+only. `release::new` touches no shared object: it reads each recording immutably through
+`new_track` and creates the release with `object::new`.
 
 **MP-7 · Info · Open** — Works, releases and all three admin caps have no deletion path;
 storage deposits are permanent and a cap can only be retired by transferring it to an
@@ -100,8 +94,7 @@ unusable address.
   `minted_currency_rejected`.
 - **Type-level authorization is sound in production.** `new_internal!` is the only
   constructor of `Composition<T>`/`Recording<T>` and their caps; test-only constructors are
-  stripped from published bytecode. A probe confirmed `release::consent` accepts a sibling
-  cap of the same type, which is reachable only through `new_for_testing`.
+  stripped from published bytecode.
 - **Currency immutability after `new`.** Metadata cap `Deleted` counts as claimed, so
   `update_from_legacy_metadata` aborts; `make_supply_fixed` wraps the cap in
   `SupplyState::Fixed` with no extraction path; `migrate_regulated_state_by_cap` needs a
@@ -113,24 +106,25 @@ unusable address.
   (`*_share.move:27-45`) can register a template's type, and only once (`ECurrencyAlreadyExists`).
 - **Money.** Exactly `SHARE_SUPPLY = 10^14` base units are minted into the returned `Balance`
   (`composition.move:22,64-75`); no later mint, burn or rounding path exists in core.
-- **Release ID commitment.** `release_digest` hashes `bcs(vector<ID>) ‖ bcs(salt)` with the
-  salt length fixed at 32 (`release.move:199-204`); both prefixes are ULEB lengths so the
-  encoding is injective. Reference digests and salt-length aborts are tested
-  (`release_digest_tests`). Every consent's `release_id` must equal the claimed derived ID
-  (`release.move:109-111`), binding membership and order.
-- **Consent single use.** A derived release ID is claimable once (`duplicate_digest_aborts`),
-  `ReleaseConsent` has no `copy`, and only `release::new` unpacks it, so a consent cannot be
-  replayed into a second release.
+- **Track proof.** `new_track` is the only production constructor of `Track`
+  (`release.move:53-55`); `track_for_testing` is stripped from published bytecode. It takes a
+  `&Recording`, and recordings are `key`-only with no deletion path, so every `Track` in a
+  release names a recording that exists. `Track` has `copy, drop, store` and grants no
+  authority, so copying one into another release is harmless.
 - **Distinctness.** `release::new` sorts the u256 forms and requires strict ascending order
-  (`release.move:99-101`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
-  `ETooManyTracks` precedes it, bounding the sort at 1,000 (`release.move:90-91`).
-- **Abort order in `release::new`.** `ENoTracks` → `ETooManyTracks` → `EDuplicateRecording`
-  → `EInvalidSaltLength` → `derived_object::EObjectAlreadyExists` → `EUnauthorizedAssignment`.
+  (`release.move:61-63`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
+  `ETooManyTracks` precedes it, bounding the sort at `u8::MAX` = 255 (`release.move:58-59`).
+- **Abort order in `release::new`.** `ENoTracks` → `ETooManyTracks` → `EDuplicateRecording`.
   All reachable; each has a test.
+- **Release IDs.** Each release gets a fresh `object::new` ID, so two releases of the same
+  tracklist are distinct objects (`two_releases_of_the_same_tracks_are_distinct`). Nothing
+  commits a release ID in advance.
 - **Object lifecycle.** `Composition`, `Recording`, `Release` are `key`-only: no `store`, no
   `drop`, no delete function, so they can only be shared by `publish` in their creating
   transaction and never wrapped, transferred or frozen. Caps are `key, store`.
-- **Derived namespaces.** Registry UIDs are never exposed; only the three `claim` sites exist.
+- **Derived namespaces.** Registry UIDs are never exposed. The only registry claims are the two
+  work claims (`composition.move:77`, `recording.move:77`); each work and release claims its
+  cap under its own UID (`composition.move:120`, `recording.move:131`, `release.move:68`).
   `derived_object::claim` marks `Claimed(id)` on the parent with a module-private key, so an
   extension holding a work's `&mut UID` cannot forge or remove the cap's claim marker, and
   its own `claim`s use different key types. Nothing can be deleted, so no re-claim after delete.
@@ -139,9 +133,9 @@ unusable address.
   (`release_uid_mut_wrong_cap_aborts`). Composition/recording caps cannot be mismatched in
   production (see above).
 - **Events.** Each publish event carries every stored field of its object
-  (`composition.move:44-47`, `recording.move:46-50`, `release.move:66-71`); `Release` emits
-  after the state flips to `Published`, so a second publish aborts before emitting. The
-  1,000-track event is exercised (`release_published_event_at_max_tracks`).
+  (`composition.move:44-47`, `recording.move:46-50`, `release.move:40-44`); a repeated
+  publish emits again with identical fields (MP-1). The 255-track event is exercised
+  (`release_published_event_at_max_tracks`).
 - **README claims** about the data model, currency checks, derivation table, event fields and
   limits match the code. Two imprecisions: `initialize_currency` also takes `ctx`, and
   `composition::new` returns the supply as a `Balance` to the caller rather than "minting to"
@@ -152,20 +146,22 @@ unusable address.
 - Publish each work or release in the transaction that creates it; the objects cannot be
   held or dropped.
 - Convert the returned `Balance<T>` (`coin::from_balance`) and transfer it in the same PTB.
-- Generate the salt as 32 random bytes and share it only with the consenting recording admins;
-  it becomes public in `ReleasePublishedEvent`.
-- Collect consents in one PTB or through an extension that wraps `ReleaseConsent`; near 1,000
-  tracks the single-PTB route exceeds transaction limits (MP-5).
-- Indexers: dedupe `CompositionPublishedEvent` / `RecordingPublishedEvent` by object ID (MP-1).
+- A release holds at most `u8::MAX` = 255 tracks, so every track position fits a `u8` and
+  packages that work over a whole tracklist in one transaction stay well inside Sui's
+  per-transaction limits. Without a cap the duplicate check's sort ran out of gas between
+  1,000 and 2,000 tracks in tests.
+- Indexers: dedupe `CompositionPublishedEvent`, `RecordingPublishedEvent` and
+  `ReleasePublishedEvent` by object ID (MP-1).
 - Decide and publish the `UpgradeCap` policy (burn, immutable, or governed); the registries'
   single namespaces and cap-gated `uid_mut` rest on it.
 
 ## Verification
 
-- `sui move test --coverage`: 49/49 passed; `sui move coverage summary`: 100.00 % for
-  `composition`, `recording`, `release`.
+- `sui move test --coverage`: 40/40 passed after the consent removal (49/49 at the audited
+  commit); `sui move coverage summary`: 100.00 % for `composition`, `recording`, `release`.
 - `sui move build -e mainnet` and `-e testnet`: OK for `miso_music`; `-e mainnet` OK for both
   templates. Toolchain `sui 1.82.1`; framework pinned at `719fb29`, share at `4cdd365`.
 - Throwaway probes (not committed): repeated `publish` on shared composition and recording
-  (MP-1), sibling-cap consent (test-only reachability), foreign-module `new_currency`
-  (rejected at build).
+  (MP-1), sibling-cap consent (test-only reachability, before the consent removal),
+  foreign-module `new_currency` (rejected at build). Repeated release `publish` is a committed
+  test (`release_publish_twice_emits_again`).

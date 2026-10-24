@@ -5,34 +5,12 @@
 module miso_music::release_tests;
 
 use std::unit_test::{assert_eq, destroy};
-use sui::derived_object;
-use miso_music::composition;
 use miso_music::recording;
 use miso_music::release;
-use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
+use miso_music::test_helpers::{Self, RecordingShare};
 
-fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::ReleaseConsent> {
-    vector::tabulate!(track_count, |_index| release::consent_for_testing(
-        test_helpers::fake_id(ctx),
-        test_helpers::fake_id(ctx),
-    ))
-}
-
-fun composition_and_recording(
-    ctx: &mut TxContext,
-): (
-    composition::Composition<CompositionShare>,
-    composition::CompositionAdminCap<CompositionShare>,
-    recording::Recording<RecordingShare>,
-    recording::RecordingAdminCap<RecordingShare>,
-) {
-    let (comp, comp_cap) = composition::new_for_testing(ctx);
-    let (rec, rec_cap) = recording::new_for_testing(object::id(&comp), ctx);
-    (comp, comp_cap, rec, rec_cap)
-}
-
-fun test_release(ctx: &mut TxContext): (release::Release, release::ReleaseAdminCap) {
-    release::new_for_testing(test_tracks(1, ctx), ctx)
+fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::Track> {
+    vector::tabulate!(track_count, |_| release::track_for_testing(test_helpers::fake_id(ctx)))
 }
 
 // === Creation Validation ===
@@ -40,148 +18,162 @@ fun test_release(ctx: &mut TxContext): (release::Release, release::ReleaseAdminC
 #[test, expected_failure(abort_code = release::ENoTracks)]
 fun new_without_tracks_aborts() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
-    let (rel, cap) = registry.new(vector[], test_helpers::salt(0));
+    let (rel, cap) = release::new(vector[], ctx);
     destroy(rel);
     destroy(cap);
-    destroy(registry);
-}
-
-#[test, expected_failure(abort_code = release::ETooManyTracks)]
-fun new_above_max_tracks_aborts() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
-    let tracks = test_tracks(release::max_tracks() + 1, ctx);
-    let (rel, cap) = registry.new(tracks, test_helpers::salt(0));
-    destroy(rel);
-    destroy(cap);
-    destroy(registry);
-}
-
-#[test, expected_failure(abort_code = release::ETooManyTracks)]
-fun new_above_max_tracks_with_duplicate_aborts_too_many() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
-    let mut tracks = test_tracks(release::max_tracks(), ctx);
-    let repeated = tracks[0].recording_id();
-    tracks.push_back(release::consent_for_testing(repeated, test_helpers::fake_id(ctx)));
-    let (rel, cap) = registry.new(tracks, test_helpers::salt(0));
-    destroy(rel);
-    destroy(cap);
-    destroy(registry);
 }
 
 #[test, expected_failure(abort_code = release::EDuplicateRecording)]
 fun new_with_duplicate_recording_aborts() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
     let (a, b) = (test_helpers::fake_id(ctx), test_helpers::fake_id(ctx));
-    let release_id = registry.derive_address(vector[a, b, a], test_helpers::salt(0)).to_id();
-    let (rel, cap) = registry.new(
-        vector[
-            release::consent_for_testing(a, release_id),
-            release::consent_for_testing(b, release_id),
-            release::consent_for_testing(a, release_id),
-        ],
-        test_helpers::salt(0),
-    );
+    let tracks = vector[a, b, a].map!(|id| release::track_for_testing(id));
+    let (rel, cap) = release::new(tracks, ctx);
     destroy(rel);
     destroy(cap);
-    destroy(registry);
 }
 
-#[test, expected_failure(abort_code = derived_object::EObjectAlreadyExists)]
-fun duplicate_digest_aborts() {
+#[test, expected_failure(abort_code = release::ETooManyTracks)]
+fun new_above_max_tracks_aborts() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
-    let rec_id = test_helpers::fake_id(ctx);
-    let rel_id = registry.derive_address(vector[rec_id], test_helpers::salt(7)).to_id();
+    let tracks = test_tracks(release::max_tracks() + 1, ctx);
+    let (rel, cap) = release::new(tracks, ctx);
+    destroy(rel);
+    destroy(cap);
+}
 
-    let (rel1, cap1) = registry.new(
-        vector[release::consent_for_testing(rec_id, rel_id)],
-        test_helpers::salt(7),
-    );
-    let (rel2, cap2) = registry.new(
-        vector[release::consent_for_testing(rec_id, rel_id)],
-        test_helpers::salt(7),
-    );
-    destroy(rel1);
-    destroy(cap1);
-    destroy(rel2);
-    destroy(cap2);
-    destroy(registry);
+#[test, expected_failure(abort_code = release::ETooManyTracks)]
+fun new_above_max_tracks_with_duplicate_aborts_too_many() {
+    let ctx = &mut tx_context::dummy();
+    let mut tracks = test_tracks(release::max_tracks(), ctx);
+    let repeated = tracks[0];
+    tracks.push_back(repeated);
+    let (rel, cap) = release::new(tracks, ctx);
+    destroy(rel);
+    destroy(cap);
+}
+
+#[test, expected_failure(abort_code = release::EDuplicateRecording)]
+fun new_at_max_tracks_with_duplicate_aborts() {
+    let ctx = &mut tx_context::dummy();
+    let mut tracks = test_tracks(release::max_tracks() - 1, ctx);
+    let repeated = tracks[200];
+    tracks.push_back(repeated);
+    let (rel, cap) = release::new(tracks, ctx);
+    destroy(rel);
+    destroy(cap);
 }
 
 #[test, expected_failure(abort_code = release::EDuplicateRecording)]
 fun new_with_adjacent_duplicate_aborts() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
     let a = test_helpers::fake_id(ctx);
-    let release_id = registry.derive_address(vector[a, a], test_helpers::salt(0)).to_id();
-    let (rel, cap) = registry.new(
-        vector[
-            release::consent_for_testing(a, release_id),
-            release::consent_for_testing(a, release_id),
-        ],
-        test_helpers::salt(0),
-    );
+    let tracks = vector[a, a].map!(|id| release::track_for_testing(id));
+    let (rel, cap) = release::new(tracks, ctx);
     destroy(rel);
     destroy(cap);
-    destroy(registry);
 }
 
-#[test, expected_failure(abort_code = release::EUnauthorizedAssignment)]
-fun new_with_later_mismatched_consent_aborts() {
+#[test]
+fun new_at_max_tracks_keeps_order() {
     let ctx = &mut tx_context::dummy();
-    let mut registry = release::new_registry_for_testing(ctx);
-    let (a, b) = (test_helpers::fake_id(ctx), test_helpers::fake_id(ctx));
-    let release_id = registry.derive_address(vector[a, b], test_helpers::salt(0)).to_id();
-    let (rel, cap) = registry.new(
-        vector[
-            release::consent_for_testing(a, release_id),
-            release::consent_for_testing(b, test_helpers::fake_id(ctx)),
-        ],
-        test_helpers::salt(0),
-    );
+    let tracks = test_tracks(release::max_tracks(), ctx);
+    let (rel, cap) = release::new(tracks, ctx);
+    assert_eq!(*rel.tracks(), tracks);
     destroy(rel);
     destroy(cap);
-    destroy(registry);
 }
 
-// === Authorization ===
+#[test]
+fun two_releases_of_the_same_tracks_are_distinct() {
+    let ctx = &mut tx_context::dummy();
+    let tracks = test_tracks(2, ctx);
+    let (rel_a, cap_a) = release::new(tracks, ctx);
+    let (rel_b, cap_b) = release::new(tracks, ctx);
+    assert!(object::id(&rel_a) != object::id(&rel_b));
+    assert_eq!(*rel_a.tracks(), *rel_b.tracks());
+    destroy(rel_a);
+    destroy(cap_a);
+    destroy(rel_b);
+    destroy(cap_b);
+}
+
+// === Tracks ===
+
+#[test]
+fun new_track_records_the_recording() {
+    let ctx = &mut tx_context::dummy();
+    let (rec, rec_cap) = recording::new_for_testing<RecordingShare>(
+        test_helpers::fake_id(ctx),
+        ctx,
+    );
+    let track = release::new_track(&rec);
+    assert_eq!(track.recording_id(), object::id(&rec));
+    destroy(rec);
+    destroy(rec_cap);
+}
+
+#[test]
+fun anyone_can_release_recordings_owned_by_others() {
+    let ctx = &mut tx_context::dummy();
+    let (rec_a, rec_cap_a) = recording::new_for_testing<RecordingShare>(
+        test_helpers::fake_id(ctx),
+        ctx,
+    );
+    let (rec_b, rec_cap_b) = recording::new_for_testing<RecordingShare>(
+        test_helpers::fake_id(ctx),
+        ctx,
+    );
+    let (rel, cap) = release::new(
+        vector[release::new_track(&rec_b), release::new_track(&rec_a)],
+        ctx,
+    );
+    assert_eq!(rel.tracks()[0].recording_id(), object::id(&rec_b));
+    assert_eq!(rel.tracks()[1].recording_id(), object::id(&rec_a));
+    destroy(rel);
+    destroy(cap);
+    destroy(rec_a);
+    destroy(rec_cap_a);
+    destroy(rec_b);
+    destroy(rec_cap_b);
+}
 
 // === Views ===
 
 #[test]
-fun release_views_reflect_initialized_release() {
+fun release_views_reflect_the_new_release() {
     let ctx = &mut tx_context::dummy();
-    let (rel, cap) = test_release(ctx);
+    let recording_id = test_helpers::fake_id(ctx);
+    let (rel, cap) = release::new(vector[release::track_for_testing(recording_id)], ctx);
 
-    assert!(rel.is_initialized_state());
-    assert!(!rel.is_published_state());
-    assert_eq!(rel.recording_ids().length(), 1);
+    assert_eq!(rel.tracks().length(), 1);
+    assert_eq!(rel.tracks()[0].recording_id(), recording_id);
     assert_eq!(cap.release_id(), object::id(&rel));
+    assert_eq!(rel.uid().to_inner(), object::id(&rel));
 
     destroy(rel);
     destroy(cap);
 }
 
-// === release::consent ===
+// === Authorization ===
 
 #[test]
-fun consent_records_release_and_recording() {
+fun authorize_accepts_the_release_cap() {
     let ctx = &mut tx_context::dummy();
-    let (comp, comp_cap, rec, rec_cap) = composition_and_recording(ctx);
-    let target_release_id = test_helpers::fake_id(ctx);
+    let (rel, cap) = release::new(test_tracks(1, ctx), ctx);
+    rel.authorize(&cap);
+    destroy(rel);
+    destroy(cap);
+}
 
-    let consent = release::consent(&rec, &rec_cap, target_release_id);
-
-    assert_eq!(consent.recording_id(), object::id(&rec));
-    assert_eq!(consent.release_id(), target_release_id);
-
-    destroy(consent);
-    destroy(comp);
-    destroy(comp_cap);
-    destroy(rec);
-    destroy(rec_cap);
+#[test, expected_failure(abort_code = release::EUnauthorized)]
+fun authorize_rejects_another_release_cap() {
+    let ctx = &mut tx_context::dummy();
+    let (rel, cap) = release::new(test_tracks(1, ctx), ctx);
+    let (other_rel, other_cap) = release::new(test_tracks(1, ctx), ctx);
+    rel.authorize(&other_cap);
+    destroy(rel);
+    destroy(cap);
+    destroy(other_rel);
+    destroy(other_cap);
 }

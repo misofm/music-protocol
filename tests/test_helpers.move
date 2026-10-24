@@ -13,7 +13,3 @@ public fun fake_id(ctx: &mut TxContext): ID {
     uid.delete();
     id
 }
-
-public fun salt(byte: u8): vector<u8> {
-    vector::tabulate!(32, |_| byte)
-}

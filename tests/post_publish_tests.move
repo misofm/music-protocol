@@ -16,11 +16,6 @@ use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
 
-#[test]
-fun published_state_bcs_layout_keeps_variant_tag() {
-    assert_eq!(release::published_state_bcs_bytes(), vector[1u8]);
-}
-
 fun publish_composition(
     scenario: &mut test_scenario::Scenario,
 ): composition::CompositionAdminCap<CompositionShare> {
@@ -65,21 +60,17 @@ fun publish_recording(
 fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAdminCap, ID) {
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
-    let (rel, cap) = release::new_for_testing(
-        vector[release::consent_for_testing(recording_id, test_helpers::fake_id(ctx))],
-        ctx,
-    );
+    let (rel, cap) = release::new_for_testing(vector[recording_id], ctx);
     let rel_id = object::id(&rel);
     rel.publish(&cap);
 
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
-    let (event_rel_id, event_cap_id, recording_ids, salt) =
+    let (event_rel_id, event_cap_id, tracks) =
         release::release_published_event_fields(events.pop_back());
     assert_eq!(event_rel_id, rel_id);
     assert_eq!(event_cap_id, object::id(&cap));
-    assert_eq!(recording_ids, vector[recording_id]);
-    assert_eq!(salt, test_helpers::salt(0));
+    assert_eq!(tracks, vector[release::track_for_testing(recording_id)]);
 
     (cap, rel_id)
 }
@@ -104,17 +95,21 @@ fun composition_uid_mut_works_after_publish() {
 
 // === Release ===
 
-#[test, expected_failure(abort_code = release::ENotInitializedState)]
-fun release_publish_twice_aborts() {
+#[test]
+fun release_publish_twice_emits_again() {
     let mut scenario = test_scenario::begin(OWNER);
-    let (cap, _rel_id) = publish_release(&mut scenario);
+    let (cap, rel_id) = publish_release(&mut scenario);
 
     scenario.next_tx(OWNER);
     let rel = scenario.take_shared<Release>();
     rel.publish(&cap);
+    let mut events = event::events_by_type<ReleasePublishedEvent>();
+    assert_eq!(events.length(), 1);
+    let (event_rel_id, _, _) = release::release_published_event_fields(events.pop_back());
+    assert_eq!(event_rel_id, rel_id);
 
     destroy(cap);
-    abort
+    scenario.end();
 }
 
 #[test]
@@ -139,8 +134,6 @@ fun release_uid_mut_works_after_publish() {
 
     scenario.next_tx(OWNER);
     let mut rel = scenario.take_shared<Release>();
-    assert!(rel.is_published_state());
-    assert!(!rel.is_initialized_state());
     dynamic_field::add(rel.uid_mut(&cap), b"metadata", 9u64);
     assert!(dynamic_field::exists(rel.uid(), b"metadata"));
     test_scenario::return_shared(rel);
@@ -152,18 +145,8 @@ fun release_uid_mut_works_after_publish() {
 #[test, expected_failure(abort_code = release::EUnauthorized)]
 fun release_publish_with_foreign_cap_aborts() {
     let ctx = &mut tx_context::dummy();
-    let (rel, cap) = release::new_for_testing(
-        vector[
-            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
-        ],
-        ctx,
-    );
-    let (other_rel, other_cap) = release::new_for_testing(
-        vector[
-            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
-        ],
-        ctx,
-    );
+    let (rel, cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
+    let (other_rel, other_cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
     rel.publish(&other_cap);
     destroy(cap);
     destroy(other_rel);
@@ -175,15 +158,12 @@ fun published_release_keeps_track_order() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let recording_ids = vector::tabulate!(3, |_| test_helpers::fake_id(ctx));
-    let consents = recording_ids.map_ref!(|recording_id| {
-        release::consent_for_testing(*recording_id, test_helpers::fake_id(ctx))
-    });
-    let (rel, cap) = release::new_for_testing(consents, ctx);
+    let (rel, cap) = release::new_for_testing(recording_ids, ctx);
     rel.publish(&cap);
 
     scenario.next_tx(STRANGER);
     let rel = scenario.take_shared<Release>();
-    assert_eq!(*rel.recording_ids(), recording_ids);
+    assert_eq!(rel.tracks().map_ref!(|track| track.recording_id()), recording_ids);
     test_scenario::return_shared(rel);
 
     destroy(cap);
@@ -194,12 +174,7 @@ fun published_release_keeps_track_order() {
 fun release_dynamic_field_attached_before_publish_survives() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
-    let (mut rel, cap) = release::new_for_testing(
-        vector[
-            release::consent_for_testing(test_helpers::fake_id(ctx), test_helpers::fake_id(ctx)),
-        ],
-        ctx,
-    );
+    let (mut rel, cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
     dynamic_field::add(rel.uid_mut(&cap), b"cover", 5u64);
     rel.publish(&cap);
 
