@@ -109,8 +109,8 @@ unusable address.
 - **ReleaseTrack proof.** `new_release_track` is the only production constructor of `ReleaseTrack`
   (`release.move:53-55`); `release_track_for_testing` is stripped from published bytecode. It takes a
   `&Recording`, and recordings are `key`-only with no deletion path, so every `ReleaseTrack` in a
-  release names a recording that exists. `ReleaseTrack` has `copy, drop, store` and grants no
-  authority, so copying one into another release is harmless.
+  release names a recording that exists. `ReleaseTrack` has `drop, store` (no `copy`) and grants
+  no authority.
 - **Distinctness.** `release::new` sorts the u256 forms and requires strict ascending order
   (`release.move:61-63`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
   `ETooManyTracks` precedes it, bounding the sort at `u8::MAX` = 255 (`release.move:58-59`).
@@ -132,7 +132,8 @@ unusable address.
   (`post_publish_tests`); wrong `ReleaseAdminCap` aborts `EUnauthorized`
   (`release_uid_mut_wrong_cap_aborts`). Composition/recording caps cannot be mismatched in
   production (see above).
-- **Events.** Each publish event carries every stored field of its object
+- **Events.** Each publish event carries every stored field of its object, as plain values
+  (`ReleasePublishedEvent.recording_ids` lists the tracklist in order)
   (`composition.move:44-47`, `recording.move:46-50`, `release.move:40-44`); a repeated
   publish emits again with identical fields (MP-1). The 255-track event is exercised
   (`release_published_event_at_max_tracks`).

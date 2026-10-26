@@ -29,7 +29,7 @@ public struct ReleaseAdminCap has key, store {
     release_id: ID,
 }
 
-public struct ReleaseTrack has copy, drop, store {
+public struct ReleaseTrack has drop, store {
     recording_id: ID,
 }
 
@@ -40,7 +40,7 @@ public struct ReleaseAdminCapKey() has copy, drop, store;
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
     admin_cap_id: ID,
-    tracks: vector<ReleaseTrack>,
+    recording_ids: vector<ID>,
 }
 
 // === Method Aliases ===
@@ -95,9 +95,9 @@ public fun release_track_recording_id(track: &ReleaseTrack): ID {
 public fun publish(self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
     let release_id = object::id(&self);
-    let tracks = self.tracks;
+    let recording_ids = self.tracks.map_ref!(|track| track.recording_id);
     transfer::share_object(self);
-    emit(ReleasePublishedEvent { release_id, admin_cap_id: object::id(cap), tracks });
+    emit(ReleasePublishedEvent { release_id, admin_cap_id: object::id(cap), recording_ids });
 }
 
 public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
@@ -136,9 +136,9 @@ public fun release_track_for_testing(recording_id: ID): ReleaseTrack {
 #[test_only]
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
-): (ID, ID, vector<ReleaseTrack>) {
-    let ReleasePublishedEvent { release_id, admin_cap_id, tracks } = event;
-    (release_id, admin_cap_id, tracks)
+): (ID, ID, vector<ID>) {
+    let ReleasePublishedEvent { release_id, admin_cap_id, recording_ids } = event;
+    (release_id, admin_cap_id, recording_ids)
 }
 
 #[test_only]
