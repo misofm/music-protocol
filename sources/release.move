@@ -13,9 +13,9 @@ use miso_music::recording::Recording;
 // === Errors ===
 
 const EUnauthorized: u64 = 0;
-const EDuplicateRecording: u64 = 1;
+const ENoTracks: u64 = 1;
 const ETooManyTracks: u64 = 2;
-const ENoTracks: u64 = 3;
+const EDuplicateRecording: u64 = 3;
 
 // === Structs ===
 
@@ -59,14 +59,7 @@ public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, Rel
     keys.merge_sort_by!(|a, b| *a <= *b);
     assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
 
-    let mut release = Release { id: object::new(ctx), recording_ids };
-    let release_id = object::id(&release);
-    let release_admin_cap = ReleaseAdminCap {
-        id: claim(&mut release.id, ReleaseAdminCapKey()),
-        release_id,
-    };
-
-    (release, release_admin_cap)
+    new_internal!(object::new(ctx), recording_ids)
 }
 
 public fun new_release_track<RecordingShare>(recording: &Recording<RecordingShare>): ReleaseTrack {
@@ -96,10 +89,13 @@ public fun release_track_recording_id(track: &ReleaseTrack): ID {
 public fun publish(self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
     let release_id = object::id(&self);
-    let release_admin_cap_id = object::id(cap);
     let recording_ids = self.recording_ids;
     transfer::share_object(self);
-    emit(ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids });
+    emit(ReleasePublishedEvent {
+        release_id,
+        release_admin_cap_id: object::id(cap),
+        recording_ids,
+    });
 }
 
 public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
@@ -111,6 +107,17 @@ public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
     &mut self.id
 }
 
+// === Private Functions ===
+
+macro fun new_internal($id: UID, $recording_ids: vector<ID>): (Release, ReleaseAdminCap) {
+    let mut release = Release { id: $id, recording_ids: $recording_ids };
+    let cap = ReleaseAdminCap {
+        id: claim(&mut release.id, ReleaseAdminCapKey()),
+        release_id: object::id(&release),
+    };
+    (release, cap)
+}
+
 // === Test Functions ===
 
 #[test_only]
@@ -118,19 +125,16 @@ public fun new_for_testing(
     recording_ids: vector<ID>,
     ctx: &mut TxContext,
 ): (Release, ReleaseAdminCap) {
-    let mut release = Release { id: object::new(ctx), recording_ids };
-    let release_id = object::id(&release);
-    let release_admin_cap = ReleaseAdminCap {
-        id: claim(&mut release.id, ReleaseAdminCapKey()),
-        release_id,
-    };
-    (release, release_admin_cap)
+    new_internal!(object::new(ctx), recording_ids)
 }
 
 #[test_only]
-public fun release_track_for_testing(recording_id: ID): ReleaseTrack {
+public fun new_release_track_for_testing(recording_id: ID): ReleaseTrack {
     ReleaseTrack { recording_id }
 }
+
+#[test_only]
+public fun max_tracks_for_testing(): u8 { u8::max_value!() }
 
 #[test_only]
 public fun release_published_event_fields(
@@ -139,6 +143,3 @@ public fun release_published_event_fields(
     let ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids } = event;
     (release_id, release_admin_cap_id, recording_ids)
 }
-
-#[test_only]
-public fun max_tracks(): u64 { u8::max_value!() as u64 }

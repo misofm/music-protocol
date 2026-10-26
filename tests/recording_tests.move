@@ -11,19 +11,32 @@ use miso_music::test_helpers::{Self, RecordingShare};
 
 const OWNER: address = @0xA1;
 
+// === Lifecycle ===
+
 #[test]
-fun publish_recording() {
-    let mut scenario = test_scenario::begin(OWNER);
-    let ctx = scenario.ctx();
-    let (rec, cap) = recording::new_for_testing<RecordingShare>(
+fun new_returns_recording_and_cap() {
+    let ctx = &mut tx_context::dummy();
+    let (recording, cap) = recording::new_for_testing<RecordingShare>(
         test_helpers::fake_id(ctx),
         ctx,
     );
-    rec.publish(&cap);
+    destroy(recording);
+    destroy(cap);
+}
+
+#[test]
+fun publish_shares_the_recording() {
+    let mut scenario = test_scenario::begin(OWNER);
+    let ctx = scenario.ctx();
+    let (recording, cap) = recording::new_for_testing<RecordingShare>(
+        test_helpers::fake_id(ctx),
+        ctx,
+    );
+    recording.publish(&cap);
 
     scenario.next_tx(OWNER);
-    let rec = scenario.take_shared<Recording<RecordingShare>>();
-    test_scenario::return_shared(rec);
+    let recording = scenario.take_shared<Recording<RecordingShare>>();
+    test_scenario::return_shared(recording);
 
     destroy(cap);
     scenario.end();

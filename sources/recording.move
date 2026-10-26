@@ -45,8 +45,8 @@ public struct RecordingAdminCapKey() has copy, drop, store;
 
 public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
     recording_id: ID,
-    composition_id: ID,
     recording_admin_cap_id: ID,
+    composition_id: ID,
 }
 
 // === Public Functions ===
@@ -58,8 +58,8 @@ fun init(ctx: &mut TxContext) {
 public fun new<RecordingShare: key, CompositionShare>(
     registry: &mut RecordingRegistry,
     currency: &mut Currency<RecordingShare>,
-    treasury_cap: TreasuryCap<RecordingShare>,
     composition: &Composition<CompositionShare>,
+    treasury_cap: TreasuryCap<RecordingShare>,
 ): (Recording<RecordingShare>, RecordingAdminCap<RecordingShare>, Balance<RecordingShare>) {
     let shares = share::mint(
         currency,
@@ -105,8 +105,8 @@ public fun publish<RecordingShare>(
     transfer::share_object(self);
     emit(RecordingPublishedEvent<RecordingShare> {
         recording_id,
-        composition_id,
         recording_admin_cap_id: object::id(cap),
+        composition_id,
     });
 }
 
@@ -136,6 +136,11 @@ macro fun new_internal<$RecordingShare>(
 // === Test Functions ===
 
 #[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
+
+#[test_only]
 public fun new_for_testing<RecordingShare>(
     composition_id: ID,
     ctx: &mut TxContext,
@@ -144,19 +149,17 @@ public fun new_for_testing<RecordingShare>(
 }
 
 #[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx);
+public fun new_recording_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
+    RecordingRegistry { id: object::new(ctx) }
 }
 
 #[test_only]
-public fun new_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
-    RecordingRegistry { id: object::new(ctx) }
-}
+public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
 public fun recording_published_event_fields<RecordingShare>(
     event: RecordingPublishedEvent<RecordingShare>,
 ): (ID, ID, ID) {
-    let RecordingPublishedEvent { recording_id, composition_id, recording_admin_cap_id } = event;
-    (recording_id, composition_id, recording_admin_cap_id)
+    let RecordingPublishedEvent { recording_id, recording_admin_cap_id, composition_id } = event;
+    (recording_id, recording_admin_cap_id, composition_id)
 }

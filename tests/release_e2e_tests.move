@@ -20,51 +20,55 @@ const READER: address = @0xBEEF;
 #[test]
 fun anyone_releases_a_published_recording() {
     let mut scenario = test_scenario::begin(SONGWRITER);
-    let (comp, comp_cap) = composition::new_for_testing<CompositionShare>(scenario.ctx());
-    comp.publish(&comp_cap);
-    destroy(comp_cap);
+    let (composition, composition_cap) =
+        composition::new_for_testing<CompositionShare>(scenario.ctx());
+    composition.publish(&composition_cap);
+    destroy(composition_cap);
 
     scenario.next_tx(ARTIST);
-    let comp = scenario.take_shared<Composition<CompositionShare>>();
-    let composition_id = object::id(&comp);
-    let (rec, rec_cap) = recording::new_for_testing<RecordingShare>(
+    let composition = scenario.take_shared<Composition<CompositionShare>>();
+    let composition_id = object::id(&composition);
+    let (recording, recording_cap) = recording::new_for_testing<RecordingShare>(
         composition_id,
         scenario.ctx(),
     );
-    rec.publish(&rec_cap);
+    recording.publish(&recording_cap);
     let mut recording_events =
         event::events_by_type<recording::RecordingPublishedEvent<RecordingShare>>();
-    let (rec_event_recording_id, rec_event_composition_id, _) =
+    let (event_recording_id, _, event_composition_id) =
         recording::recording_published_event_fields(recording_events.pop_back());
-    test_scenario::return_shared(comp);
+    test_scenario::return_shared(composition);
 
     scenario.next_tx(CURATOR);
-    let rec = scenario.take_shared<Recording<RecordingShare>>();
-    let recording_id = object::id(&rec);
-    let (rel, rel_cap) = release::new(vector[release::new_release_track(&rec)], scenario.ctx());
-    let release_id = object::id(&rel);
-    test_scenario::return_shared(rec);
+    let recording = scenario.take_shared<Recording<RecordingShare>>();
+    let recording_id = object::id(&recording);
+    let (release, release_cap) = release::new(
+        vector[release::new_release_track(&recording)],
+        scenario.ctx(),
+    );
+    let release_id = object::id(&release);
+    test_scenario::return_shared(recording);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
-    rel.publish(&rel_cap);
+    release.publish(&release_cap);
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, release_id);
-    assert_eq!(event_release_admin_cap_id, object::id(&rel_cap));
+    assert_eq!(event_release_admin_cap_id, object::id(&release_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
-    assert_eq!(event_recording_ids, vector[rec_event_recording_id]);
-    assert_eq!(rec_event_composition_id, composition_id);
-    destroy(rel_cap);
+    assert_eq!(event_recording_ids, vector[event_recording_id]);
+    assert_eq!(event_composition_id, composition_id);
+    destroy(release_cap);
 
     scenario.next_tx(READER);
-    let rel = scenario.take_shared<Release>();
-    assert_eq!(object::id(&rel), release_id);
-    assert_eq!(rel.recording_ids()[0], recording_id);
-    test_scenario::return_shared(rel);
+    let release = scenario.take_shared<Release>();
+    assert_eq!(object::id(&release), release_id);
+    assert_eq!(release.recording_ids()[0], recording_id);
+    test_scenario::return_shared(release);
 
-    destroy(rec_cap);
+    destroy(recording_cap);
     scenario.end();
 }

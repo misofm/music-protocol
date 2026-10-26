@@ -125,7 +125,9 @@ macro fun new_internal<$CompositionShare>(
 // === Test Functions ===
 
 #[test_only]
-public fun share_supply(): u64 { SHARE_SUPPLY }
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
 
 #[test_only]
 public fun new_for_testing<CompositionShare>(
@@ -135,14 +137,12 @@ public fun new_for_testing<CompositionShare>(
 }
 
 #[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx);
+public fun new_composition_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
+    CompositionRegistry { id: object::new(ctx) }
 }
 
 #[test_only]
-public fun new_registry_for_testing(ctx: &mut TxContext): CompositionRegistry {
-    CompositionRegistry { id: object::new(ctx) }
-}
+public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
 public fun composition_published_event_fields<CompositionShare>(

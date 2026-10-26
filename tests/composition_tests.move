@@ -14,23 +14,23 @@ const OWNER: address = @0xA1;
 // === Lifecycle ===
 
 #[test]
-fun new_composition() {
+fun new_returns_composition_and_cap() {
     let ctx = &mut tx_context::dummy();
-    let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    destroy(comp);
+    let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
+    destroy(composition);
     destroy(cap);
 }
 
 #[test]
-fun publish_composition() {
+fun publish_shares_the_composition() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
-    let (comp, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    comp.publish(&cap);
+    let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
+    composition.publish(&cap);
 
     scenario.next_tx(OWNER);
-    let comp = scenario.take_shared<Composition<CompositionShare>>();
-    test_scenario::return_shared(comp);
+    let composition = scenario.take_shared<Composition<CompositionShare>>();
+    test_scenario::return_shared(composition);
 
     destroy(cap);
     scenario.end();
