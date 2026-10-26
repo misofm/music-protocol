@@ -98,10 +98,6 @@ public fun publish(self: Release, cap: &ReleaseAdminCap) {
     });
 }
 
-public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
-    assert!(object::id(self) == cap.release_id, EUnauthorized);
-}
-
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
     self.authorize(cap);
     &mut self.id
@@ -116,6 +112,10 @@ macro fun new_internal($id: UID, $recording_ids: vector<ID>): (Release, ReleaseA
         release_id: object::id(&release),
     };
     (release, cap)
+}
+
+fun authorize(self: &Release, cap: &ReleaseAdminCap) {
+    assert!(object::id(self) == cap.release_id, EUnauthorized);
 }
 
 // === Test Functions ===

@@ -38,7 +38,8 @@ ordered tracklist of `ReleaseTrack` values that anyone can create from existing 
   recording. Authorization is by type parameter: exactly one work and one cap
   exist per share type, both derived (`composition.move:76-78,115-123`, `recording.move:76-79,122-134`).
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
-  `&mut UID`; checked by stored `release_id` (`release.move:101-102,105-108`).
+  `&mut UID`; both call the private `authorize`, which checks the stored `release_id`
+  (`release.move:89-90,101-102,117-119`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
   under the two registries, construct `ReleaseTrack` values without a recording, or expose `&mut UID`
   without a cap. Core has no on-chain
@@ -60,7 +61,7 @@ object, so the cap holder can call `publish` again on the shared object and emit
 `test_scenario` probe (second tx: one user event, no abort). No state changes; the state enum
 that prevented this was removed deliberately (`f613a89`). Indexers must dedupe by object ID.
 Release `publish` is repeatable the same way since `ReleaseState` was removed
-(`release.move:88-98`): a second `ReleasePublishedEvent` with identical fields
+(`release.move:89-98`): a second `ReleasePublishedEvent` with identical fields
 (`release_publish_twice_emits_again`).
 
 **MP-3 · Info · Accepted** — Core verifies the currency, not the template bytecode.
@@ -72,10 +73,10 @@ treasury cap, fixed supply) are checked on `Currency<Share>` and the consumed `T
 so they hold regardless of the bytecode. The README's "publish the template unchanged" is
 tooling guidance, not an on-chain property.
 
-**MP-4 · Info · Open** — `ReleaseAdminCap.release_id` is stored although the cap ID is derived
-from the release (`release.move:27-30,112-118`). `authorize` could compare
-`derived_object::derive_address(object::id(release), ReleaseAdminCapKey())` with the cap ID
-instead. Storage-only; no security impact.
+**MP-4 · Info · Accepted** — `ReleaseAdminCap.release_id` is stored although the cap ID is
+derived from the release (`release.move:27-30,108-115`). Kept on purpose: a derived ID can't be
+reversed, so the stored field is the only way to find a cap's release over plain RPC.
+Composition and recording caps don't need it because their type parameter names the work.
 
 **MP-6 · Info · Open** — Composition and recording creations serialize on one shared registry
 per kind (`composition.move:56`, `recording.move:59`). Throughput of `composition::new` and
@@ -126,7 +127,7 @@ unusable address.
   transaction and never wrapped, transferred or frozen. Caps are `key, store`.
 - **Derived namespaces.** Registry UIDs are never exposed. The only registry claims are the two
   work claims (`composition.move:77`, `recording.move:77`); each work and release claims its
-  cap under its own UID (`composition.move:120`, `recording.move:131`, `release.move:115`).
+  cap under its own UID (`composition.move:120`, `recording.move:131`, `release.move:111`).
   `derived_object::claim` marks `Claimed(id)` on the parent with a module-private key, so an
   extension holding a work's `&mut UID` cannot forge or remove the cap's claim marker, and
   its own `claim`s use different key types. Nothing can be deleted, so no re-claim after delete.

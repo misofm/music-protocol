@@ -185,20 +185,20 @@ fun release_published_event_at_max_tracks() {
 // === Authorization ===
 
 #[test]
-fun authorize_accepts_the_release_cap() {
+fun uid_mut_accepts_the_release_cap_before_publish() {
     let ctx = &mut tx_context::dummy();
-    let (release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
-    release.authorize(&cap);
+    let (mut release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
+    release.uid_mut(&cap);
     destroy(release);
     destroy(cap);
 }
 
 #[test, expected_failure(abort_code = release::EUnauthorized)]
-fun authorize_rejects_another_release_cap() {
+fun uid_mut_rejects_another_release_cap_before_publish() {
     let ctx = &mut tx_context::dummy();
-    let (release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
+    let (mut release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
     let (other_release, other_cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
-    release.authorize(&other_cap);
+    release.uid_mut(&other_cap);
     destroy(release);
     destroy(cap);
     destroy(other_release);
