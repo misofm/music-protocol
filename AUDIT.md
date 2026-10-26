@@ -36,14 +36,14 @@ ordered tracklist of `ReleaseTrack` values that anyone can create from existing 
   recording. Authorization is by type parameter: exactly one work and one cap
   exist per `T`, both derived (`composition.move:76-78,115-123`, `recording.move:76-79,122-134`).
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
-  `&mut UID`; checked by stored `release_id` (`release.move:95-96,103-110`).
+  `&mut UID`; checked by stored `release_id` (`release.move:96-97,105-112`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
   under the two registries, construct `ReleaseTrack` values without a recording, or expose `&mut UID`
   without a cap. Core has no on-chain
   defence against this; see Operational requirements.
 - **Nobody** can: construct a registry after `init` (`composition.move:51-53`,
   `recording.move:54-56`); mutate a registry UID; change `Recording.composition_id` or
-  `Release.tracks`; construct a `ReleaseTrack` except from a `&Recording` (`release.move:53-55`); mint
+  `Release.recording_ids`; construct a `ReleaseTrack` except from a `&Recording` (`release.move:72-74`); mint
   shares after creation; re-regulate or edit the currency metadata
   (metadata cap deleted; `make_regulated` is initializer-only and no `DenyCapV2<T>` can
   exist for a `key` type); delete a work, release or cap; or recover a lost cap.
@@ -58,7 +58,7 @@ object, so the cap holder can call `publish` again on the shared object and emit
 `test_scenario` probe (second tx: one user event, no abort). No state changes; the state enum
 that prevented this was removed deliberately (`f613a89`). Indexers must dedupe by object ID.
 Release `publish` is repeatable the same way since `ReleaseState` was removed
-(`release.move:95-101`): a second `ReleasePublishedEvent` with identical fields
+(`release.move:96-103`): a second `ReleasePublishedEvent` with identical fields
 (`release_publish_twice_emits_again`).
 
 **MP-3 · Info · Accepted** — Core verifies the currency, not the template bytecode.
@@ -71,7 +71,7 @@ so they hold regardless of the bytecode. The README's "publish the template unch
 tooling guidance, not an on-chain property.
 
 **MP-4 · Info · Open** — `ReleaseAdminCap.release_id` is stored although the cap ID is derived
-from the release (`release.move:27-30,67-70`). `authorize` could compare
+from the release (`release.move:27-30,64-67`). `authorize` could compare
 `derived_object::derive_address(object::id(release), ReleaseAdminCapKey())` with the cap ID
 instead. Storage-only; no security impact.
 
@@ -107,13 +107,13 @@ unusable address.
 - **Money.** Exactly `SHARE_SUPPLY = 10^14` base units are minted into the returned `Balance`
   (`composition.move:22,64-75`); no later mint, burn or rounding path exists in core.
 - **ReleaseTrack proof.** `new_release_track` is the only production constructor of `ReleaseTrack`
-  (`release.move:53-55`); `release_track_for_testing` is stripped from published bytecode. It takes a
+  (`release.move:72-74`); `release_track_for_testing` is stripped from published bytecode. It takes a
   `&Recording`, and recordings are `key`-only with no deletion path, so every `ReleaseTrack` in a
-  release names a recording that exists. `ReleaseTrack` has `drop, store` (no `copy`) and grants
-  no authority.
+  release names a recording that exists. `ReleaseTrack` has only `drop` and grants no authority;
+  `new` consumes the proofs and stores `recording_ids: vector<ID>` in tracklist order.
 - **Distinctness.** `release::new` sorts the u256 forms and requires strict ascending order
-  (`release.move:61-63`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
-  `ETooManyTracks` precedes it, bounding the sort at `u8::MAX` = 255 (`release.move:58-59`).
+  (`release.move:58-60`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.
+  `ETooManyTracks` precedes it, bounding the sort at `u8::MAX` = 255 (`release.move:54-55`).
 - **Abort order in `release::new`.** `ENoTracks` → `ETooManyTracks` → `EDuplicateRecording`.
   All reachable; each has a test.
 - **Release IDs.** Each release gets a fresh `object::new` ID, so two releases of the same
@@ -124,7 +124,7 @@ unusable address.
   transaction and never wrapped, transferred or frozen. Caps are `key, store`.
 - **Derived namespaces.** Registry UIDs are never exposed. The only registry claims are the two
   work claims (`composition.move:77`, `recording.move:77`); each work and release claims its
-  cap under its own UID (`composition.move:120`, `recording.move:131`, `release.move:68`).
+  cap under its own UID (`composition.move:120`, `recording.move:131`, `release.move:65`).
   `derived_object::claim` marks `Claimed(id)` on the parent with a module-private key, so an
   extension holding a work's `&mut UID` cannot forge or remove the cap's claim marker, and
   its own `claim`s use different key types. Nothing can be deleted, so no re-claim after delete.
@@ -133,7 +133,7 @@ unusable address.
   (`release_uid_mut_wrong_cap_aborts`). Composition/recording caps cannot be mismatched in
   production (see above).
 - **Events.** Each publish event carries every stored field of its object, as plain values
-  (`ReleasePublishedEvent.recording_ids` lists the tracklist in order)
+  (`ReleasePublishedEvent.recording_ids` mirrors `Release.recording_ids`)
   (`composition.move:44-47`, `recording.move:46-50`, `release.move:40-44`); a repeated
   publish emits again with identical fields (MP-1). The 255-track event is exercised
   (`release_published_event_at_max_tracks`).

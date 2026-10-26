@@ -163,7 +163,7 @@ fun published_release_keeps_track_order() {
 
     scenario.next_tx(STRANGER);
     let rel = scenario.take_shared<Release>();
-    assert_eq!(rel.tracks().map_ref!(|track| track.recording_id()), recording_ids);
+    assert_eq!(*rel.recording_ids(), recording_ids);
     test_scenario::return_shared(rel);
 
     destroy(cap);

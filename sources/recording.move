@@ -46,7 +46,7 @@ public struct RecordingAdminCapKey() has copy, drop, store;
 public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
     recording_id: ID,
     composition_id: ID,
-    admin_cap_id: ID,
+    recording_admin_cap_id: ID,
 }
 
 // === Public Functions ===
@@ -106,7 +106,7 @@ public fun publish<RecordingShare>(
     emit(RecordingPublishedEvent<RecordingShare> {
         recording_id,
         composition_id,
-        admin_cap_id: object::id(cap),
+        recording_admin_cap_id: object::id(cap),
     });
 }
 
@@ -157,6 +157,6 @@ public fun new_registry_for_testing(ctx: &mut TxContext): RecordingRegistry {
 public fun recording_published_event_fields<RecordingShare>(
     event: RecordingPublishedEvent<RecordingShare>,
 ): (ID, ID, ID) {
-    let RecordingPublishedEvent { recording_id, composition_id, admin_cap_id } = event;
-    (recording_id, composition_id, admin_cap_id)
+    let RecordingPublishedEvent { recording_id, composition_id, recording_admin_cap_id } = event;
+    (recording_id, composition_id, recording_admin_cap_id)
 }

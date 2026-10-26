@@ -6,7 +6,7 @@ module miso_music::release_tests;
 
 use std::unit_test::{assert_eq, destroy};
 use miso_music::recording;
-use miso_music::release::{Self, Release, ReleaseTrack};
+use miso_music::release::{Self, ReleaseTrack};
 use miso_music::test_helpers::{Self, RecordingShare};
 
 fun test_recording_ids(track_count: u64, ctx: &mut TxContext): vector<ID> {
@@ -15,10 +15,6 @@ fun test_recording_ids(track_count: u64, ctx: &mut TxContext): vector<ID> {
 
 fun test_tracks(recording_ids: vector<ID>): vector<ReleaseTrack> {
     recording_ids.map!(|recording_id| release::release_track_for_testing(recording_id))
-}
-
-fun track_recording_ids(rel: &Release): vector<ID> {
-    rel.tracks().map_ref!(|track| track.recording_id())
 }
 
 // === Creation Validation ===
@@ -85,7 +81,7 @@ fun new_at_max_tracks_keeps_order() {
     let ctx = &mut tx_context::dummy();
     let recording_ids = test_recording_ids(release::max_tracks(), ctx);
     let (rel, cap) = release::new(test_tracks(recording_ids), ctx);
-    assert_eq!(track_recording_ids(&rel), recording_ids);
+    assert_eq!(*rel.recording_ids(), recording_ids);
     destroy(rel);
     destroy(cap);
 }
@@ -97,7 +93,7 @@ fun two_releases_of_the_same_tracks_are_distinct() {
     let (rel_a, cap_a) = release::new(test_tracks(recording_ids), ctx);
     let (rel_b, cap_b) = release::new(test_tracks(recording_ids), ctx);
     assert!(object::id(&rel_a) != object::id(&rel_b));
-    assert_eq!(track_recording_ids(&rel_a), track_recording_ids(&rel_b));
+    assert_eq!(*rel_a.recording_ids(), *rel_b.recording_ids());
     destroy(rel_a);
     destroy(cap_a);
     destroy(rel_b);
@@ -134,8 +130,8 @@ fun anyone_can_release_recordings_owned_by_others() {
         vector[release::new_release_track(&rec_b), release::new_release_track(&rec_a)],
         ctx,
     );
-    assert_eq!(rel.tracks()[0].recording_id(), object::id(&rec_b));
-    assert_eq!(rel.tracks()[1].recording_id(), object::id(&rec_a));
+    assert_eq!(rel.recording_ids()[0], object::id(&rec_b));
+    assert_eq!(rel.recording_ids()[1], object::id(&rec_a));
     destroy(rel);
     destroy(cap);
     destroy(rec_a);
@@ -152,8 +148,8 @@ fun release_views_reflect_the_new_release() {
     let recording_id = test_helpers::fake_id(ctx);
     let (rel, cap) = release::new(vector[release::release_track_for_testing(recording_id)], ctx);
 
-    assert_eq!(rel.tracks().length(), 1);
-    assert_eq!(rel.tracks()[0].recording_id(), recording_id);
+    assert_eq!(rel.recording_ids().length(), 1);
+    assert_eq!(rel.recording_ids()[0], recording_id);
     assert_eq!(cap.release_id(), object::id(&rel));
     assert_eq!(rel.uid().to_inner(), object::id(&rel));
 

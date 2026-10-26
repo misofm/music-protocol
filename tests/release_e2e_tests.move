@@ -50,10 +50,10 @@ fun anyone_releases_a_published_recording() {
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_admin_cap_id, event_recording_ids) =
+    let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
         release::release_published_event_fields(published_events.pop_back());
     assert_eq!(event_release_id, release_id);
-    assert_eq!(event_admin_cap_id, object::id(&rel_cap));
+    assert_eq!(event_release_admin_cap_id, object::id(&rel_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
     assert_eq!(event_recording_ids, vector[rec_event_recording_id]);
     assert_eq!(rec_event_composition_id, composition_id);
@@ -62,7 +62,7 @@ fun anyone_releases_a_published_recording() {
     scenario.next_tx(READER);
     let rel = scenario.take_shared<Release>();
     assert_eq!(object::id(&rel), release_id);
-    assert_eq!(rel.tracks()[0].recording_id(), recording_id);
+    assert_eq!(rel.recording_ids()[0], recording_id);
     test_scenario::return_shared(rel);
 
     destroy(rec_cap);

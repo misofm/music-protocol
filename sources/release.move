@@ -21,7 +21,7 @@ const ENoTracks: u64 = 3;
 
 public struct Release has key {
     id: UID,
-    tracks: vector<ReleaseTrack>,
+    recording_ids: vector<ID>,
 }
 
 public struct ReleaseAdminCap has key, store {
@@ -29,7 +29,7 @@ public struct ReleaseAdminCap has key, store {
     release_id: ID,
 }
 
-public struct ReleaseTrack has drop, store {
+public struct ReleaseTrack has drop {
     recording_id: ID,
 }
 
@@ -39,7 +39,7 @@ public struct ReleaseAdminCapKey() has copy, drop, store;
 
 public struct ReleasePublishedEvent has copy, drop {
     release_id: ID,
-    admin_cap_id: ID,
+    release_admin_cap_id: ID,
     recording_ids: vector<ID>,
 }
 
@@ -50,19 +50,16 @@ public use fun release_track_recording_id as ReleaseTrack.recording_id;
 
 // === Public Functions ===
 
-public fun new_release_track<RecordingShare>(recording: &Recording<RecordingShare>): ReleaseTrack {
-    ReleaseTrack { recording_id: object::id(recording) }
-}
-
 public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, ReleaseAdminCap) {
     assert!(!tracks.is_empty(), ENoTracks);
     assert!(tracks.length() <= (u8::max_value!() as u64), ETooManyTracks);
 
-    let mut keys = tracks.map_ref!(|track| track.recording_id.to_address().to_u256());
+    let recording_ids = tracks.map!(|track| track.recording_id);
+    let mut keys = recording_ids.map_ref!(|recording_id| recording_id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);
     assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
 
-    let mut release = Release { id: object::new(ctx), tracks };
+    let mut release = Release { id: object::new(ctx), recording_ids };
     let release_id = object::id(&release);
     let release_admin_cap = ReleaseAdminCap {
         id: claim(&mut release.id, ReleaseAdminCapKey()),
@@ -72,10 +69,14 @@ public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, Rel
     (release, release_admin_cap)
 }
 
+public fun new_release_track<RecordingShare>(recording: &Recording<RecordingShare>): ReleaseTrack {
+    ReleaseTrack { recording_id: object::id(recording) }
+}
+
 // === View Functions ===
 
-public fun tracks(self: &Release): &vector<ReleaseTrack> {
-    &self.tracks
+public fun recording_ids(self: &Release): &vector<ID> {
+    &self.recording_ids
 }
 
 public fun uid(self: &Release): &UID {
@@ -95,9 +96,10 @@ public fun release_track_recording_id(track: &ReleaseTrack): ID {
 public fun publish(self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
     let release_id = object::id(&self);
-    let recording_ids = self.tracks.map_ref!(|track| track.recording_id);
+    let release_admin_cap_id = object::id(cap);
+    let recording_ids = self.recording_ids;
     transfer::share_object(self);
-    emit(ReleasePublishedEvent { release_id, admin_cap_id: object::id(cap), recording_ids });
+    emit(ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids });
 }
 
 public fun authorize(self: &Release, cap: &ReleaseAdminCap) {
@@ -116,10 +118,7 @@ public fun new_for_testing(
     recording_ids: vector<ID>,
     ctx: &mut TxContext,
 ): (Release, ReleaseAdminCap) {
-    let mut release = Release {
-        id: object::new(ctx),
-        tracks: recording_ids.map!(|recording_id| ReleaseTrack { recording_id }),
-    };
+    let mut release = Release { id: object::new(ctx), recording_ids };
     let release_id = object::id(&release);
     let release_admin_cap = ReleaseAdminCap {
         id: claim(&mut release.id, ReleaseAdminCapKey()),
@@ -137,8 +136,8 @@ public fun release_track_for_testing(recording_id: ID): ReleaseTrack {
 public fun release_published_event_fields(
     event: ReleasePublishedEvent,
 ): (ID, ID, vector<ID>) {
-    let ReleasePublishedEvent { release_id, admin_cap_id, recording_ids } = event;
-    (release_id, admin_cap_id, recording_ids)
+    let ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids } = event;
+    (release_id, release_admin_cap_id, recording_ids)
 }
 
 #[test_only]
