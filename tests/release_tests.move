@@ -110,8 +110,10 @@ fun new_release_track_records_the_recording() {
         test_helpers::fake_id(ctx),
         ctx,
     );
-    let track = release::new_release_track(&recording);
-    assert_eq!(track.recording_id(), object::id(&recording));
+    let (release, cap) = release::new(vector[release::new_release_track(&recording)], ctx);
+    assert_eq!(*release.recording_ids(), vector[object::id(&recording)]);
+    destroy(release);
+    destroy(cap);
     destroy(recording);
     destroy(recording_cap);
 }

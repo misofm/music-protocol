@@ -46,7 +46,6 @@ public struct ReleasePublishedEvent has copy, drop {
 // === Method Aliases ===
 
 public use fun release_admin_cap_release_id as ReleaseAdminCap.release_id;
-public use fun release_track_recording_id as ReleaseTrack.recording_id;
 
 // === Public Functions ===
 
@@ -78,10 +77,6 @@ public fun uid(self: &Release): &UID {
 
 public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
     cap.release_id
-}
-
-public fun release_track_recording_id(track: &ReleaseTrack): ID {
-    track.recording_id
 }
 
 // === Admin Functions ===
