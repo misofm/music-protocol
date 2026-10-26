@@ -36,7 +36,7 @@ fun anyone_releases_a_published_recording() {
     let mut recording_events =
         event::events_by_type<recording::RecordingPublishedEvent<RecordingShare>>();
     let (event_recording_id, _, event_composition_id) =
-        recording::recording_published_event_fields(recording_events.pop_back());
+        recording::recording_published_event_fields(&recording_events.pop_back());
     test_scenario::return_shared(composition);
 
     scenario.next_tx(CURATOR);
@@ -55,7 +55,7 @@ fun anyone_releases_a_published_recording() {
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(published_events.pop_back());
+        release::release_published_event_fields(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&release_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);

@@ -146,8 +146,8 @@ public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
 public fun composition_published_event_fields<CompositionShare>(
-    event: CompositionPublishedEvent<CompositionShare>,
+    event: &CompositionPublishedEvent<CompositionShare>,
 ): (ID, ID) {
     let CompositionPublishedEvent { composition_id, composition_admin_cap_id } = event;
-    (composition_id, composition_admin_cap_id)
+    (*composition_id, *composition_admin_cap_id)
 }

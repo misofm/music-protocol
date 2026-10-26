@@ -83,7 +83,7 @@ fun templates_create_composition_and_recording() {
     composition.publish(&composition_cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     let (event_composition_id, event_composition_admin_cap_id) =
-        composition::composition_published_event_fields(events.pop_back());
+        composition::composition_published_event_fields(&events.pop_back());
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(event_composition_admin_cap_id, object::id(&composition_cap));
     test_scenario::return_shared(currency);
@@ -123,7 +123,7 @@ fun templates_create_composition_and_recording() {
     recording.publish(&recording_cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     let (event_recording_id, event_recording_admin_cap_id, event_composition_id) =
-        recording::recording_published_event_fields(events.pop_back());
+        recording::recording_published_event_fields(&events.pop_back());
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&recording_cap));
     assert_eq!(event_composition_id, composition_id);

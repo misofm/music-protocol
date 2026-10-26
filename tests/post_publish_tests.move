@@ -27,7 +27,7 @@ fun publish_composition(
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(events.length(), 1);
     let (event_composition_id, event_composition_admin_cap_id) =
-        composition::composition_published_event_fields(events.pop_back());
+        composition::composition_published_event_fields(&events.pop_back());
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(event_composition_admin_cap_id, object::id(&cap));
 
@@ -49,7 +49,7 @@ fun publish_recording(
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     assert_eq!(events.length(), 1);
     let (event_recording_id, event_recording_admin_cap_id, event_composition_id) =
-        recording::recording_published_event_fields(events.pop_back());
+        recording::recording_published_event_fields(&events.pop_back());
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&cap));
     assert_eq!(event_composition_id, composition_id);
@@ -67,7 +67,7 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(events.pop_back());
+        release::release_published_event_fields(&events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
@@ -122,7 +122,7 @@ fun release_publish_twice_emits_again() {
     release.publish(&cap);
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert_eq!(events.length(), 1);
-    let (event_release_id, _, _) = release::release_published_event_fields(events.pop_back());
+    let (event_release_id, _, _) = release::release_published_event_fields(&events.pop_back());
     assert_eq!(event_release_id, release_id);
 
     destroy(cap);

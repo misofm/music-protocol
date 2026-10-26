@@ -158,8 +158,8 @@ public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
 public fun recording_published_event_fields<RecordingShare>(
-    event: RecordingPublishedEvent<RecordingShare>,
+    event: &RecordingPublishedEvent<RecordingShare>,
 ): (ID, ID, ID) {
     let RecordingPublishedEvent { recording_id, recording_admin_cap_id, composition_id } = event;
-    (recording_id, recording_admin_cap_id, composition_id)
+    (*recording_id, *recording_admin_cap_id, *composition_id)
 }

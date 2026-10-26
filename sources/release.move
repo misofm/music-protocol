@@ -138,8 +138,8 @@ public fun max_tracks_for_testing(): u8 { u8::max_value!() }
 
 #[test_only]
 public fun release_published_event_fields(
-    event: ReleasePublishedEvent,
+    event: &ReleasePublishedEvent,
 ): (ID, ID, vector<ID>) {
     let ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids } = event;
-    (release_id, release_admin_cap_id, recording_ids)
+    (*release_id, *release_admin_cap_id, *recording_ids)
 }

@@ -176,7 +176,7 @@ fun release_published_event_at_max_tracks() {
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(published_events.pop_back());
+        release::release_published_event_fields(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, cap_id);
     assert_eq!(event_recording_ids, recording_ids);
