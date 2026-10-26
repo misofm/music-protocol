@@ -9,8 +9,8 @@ use miso_music::recording;
 use miso_music::release;
 use miso_music::test_helpers::{Self, RecordingShare};
 
-fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::Track> {
-    vector::tabulate!(track_count, |_| release::track_for_testing(test_helpers::fake_id(ctx)))
+fun test_tracks(track_count: u64, ctx: &mut TxContext): vector<release::ReleaseTrack> {
+    vector::tabulate!(track_count, |_| release::release_track_for_testing(test_helpers::fake_id(ctx)))
 }
 
 // === Creation Validation ===
@@ -27,7 +27,7 @@ fun new_without_tracks_aborts() {
 fun new_with_duplicate_recording_aborts() {
     let ctx = &mut tx_context::dummy();
     let (a, b) = (test_helpers::fake_id(ctx), test_helpers::fake_id(ctx));
-    let tracks = vector[a, b, a].map!(|id| release::track_for_testing(id));
+    let tracks = vector[a, b, a].map!(|id| release::release_track_for_testing(id));
     let (rel, cap) = release::new(tracks, ctx);
     destroy(rel);
     destroy(cap);
@@ -68,7 +68,7 @@ fun new_at_max_tracks_with_duplicate_aborts() {
 fun new_with_adjacent_duplicate_aborts() {
     let ctx = &mut tx_context::dummy();
     let a = test_helpers::fake_id(ctx);
-    let tracks = vector[a, a].map!(|id| release::track_for_testing(id));
+    let tracks = vector[a, a].map!(|id| release::release_track_for_testing(id));
     let (rel, cap) = release::new(tracks, ctx);
     destroy(rel);
     destroy(cap);
@@ -107,7 +107,7 @@ fun new_track_records_the_recording() {
         test_helpers::fake_id(ctx),
         ctx,
     );
-    let track = release::new_track(&rec);
+    let track = release::new_release_track(&rec);
     assert_eq!(track.recording_id(), object::id(&rec));
     destroy(rec);
     destroy(rec_cap);
@@ -125,7 +125,7 @@ fun anyone_can_release_recordings_owned_by_others() {
         ctx,
     );
     let (rel, cap) = release::new(
-        vector[release::new_track(&rec_b), release::new_track(&rec_a)],
+        vector[release::new_release_track(&rec_b), release::new_release_track(&rec_a)],
         ctx,
     );
     assert_eq!(rel.tracks()[0].recording_id(), object::id(&rec_b));
@@ -144,7 +144,7 @@ fun anyone_can_release_recordings_owned_by_others() {
 fun release_views_reflect_the_new_release() {
     let ctx = &mut tx_context::dummy();
     let recording_id = test_helpers::fake_id(ctx);
-    let (rel, cap) = release::new(vector[release::track_for_testing(recording_id)], ctx);
+    let (rel, cap) = release::new(vector[release::release_track_for_testing(recording_id)], ctx);
 
     assert_eq!(rel.tracks().length(), 1);
     assert_eq!(rel.tracks()[0].recording_id(), recording_id);

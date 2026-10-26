@@ -14,7 +14,7 @@ fun release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
     let track_count = release::max_tracks();
     let tracks = vector::tabulate!(track_count, |_| {
-        release::track_for_testing(test_helpers::fake_id(ctx))
+        release::release_track_for_testing(test_helpers::fake_id(ctx))
     });
     let (rel, rel_cap) = release::new(tracks, ctx);
     let release_id = object::id(&rel);

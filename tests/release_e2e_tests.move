@@ -41,7 +41,7 @@ fun anyone_releases_a_published_recording() {
     scenario.next_tx(CURATOR);
     let rec = scenario.take_shared<Recording<RecordingShare>>();
     let recording_id = object::id(&rec);
-    let (rel, rel_cap) = release::new(vector[release::new_track(&rec)], scenario.ctx());
+    let (rel, rel_cap) = release::new(vector[release::new_release_track(&rec)], scenario.ctx());
     let release_id = object::id(&rel);
     test_scenario::return_shared(rec);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);

@@ -14,14 +14,14 @@ re-checked against that code. Line references are to the current code.
 
 Identity core: one `Composition<CompositionShare>` and one `Recording<RecordingShare>` per
 share coin type, each backed by a fixed 100M-share currency, and `Release` objects holding an
-ordered tracklist of `Track` values that anyone can create from existing recordings. See
+ordered tracklist of `ReleaseTrack` values that anyone can create from existing recordings. See
 [README](README.md).
 
 ## Trust model
 
 - **Anyone** may publish a share template, register its currency, create a composition or
   recording (`composition::new`, `recording::new`), create a release of any recordings
-  (`release::new_track`, `release::new`), and read every object (`uid`, `derive_address`,
+  (`release::new_release_track`, `release::new`), and read every object (`uid`, `derive_address`,
   getters).
 - **Share package publisher** holds `InitializeCurrencyTicket` (`key, store`, transferable);
   it is the only path to `coin_registry::new_currency<T>` for that type because the Sui
@@ -38,12 +38,12 @@ ordered tracklist of `Track` values that anyone can create from existing recordi
 - **`ReleaseAdminCap` holder** (bearer, `key, store`): can publish the release and obtain
   `&mut UID`; checked by stored `release_id` (`release.move:95-96,103-110`).
 - **Package upgrader** (holder of the `UpgradeCap`): can add functions that claim new keys
-  under the two registries, construct `Track` values without a recording, or expose `&mut UID`
+  under the two registries, construct `ReleaseTrack` values without a recording, or expose `&mut UID`
   without a cap. Core has no on-chain
   defence against this; see Operational requirements.
 - **Nobody** can: construct a registry after `init` (`composition.move:51-53`,
   `recording.move:54-56`); mutate a registry UID; change `Recording.composition_id` or
-  `Release.tracks`; construct a `Track` except from a `&Recording` (`release.move:53-55`); mint
+  `Release.tracks`; construct a `ReleaseTrack` except from a `&Recording` (`release.move:53-55`); mint
   shares after creation; re-regulate or edit the currency metadata
   (metadata cap deleted; `make_regulated` is initializer-only and no `DenyCapV2<T>` can
   exist for a `key` type); delete a work, release or cap; or recover a lost cap.
@@ -79,7 +79,7 @@ instead. Storage-only; no security impact.
 per kind (`composition.move:56`, `recording.move:59`). Throughput of `composition::new` and
 `recording::new` is bounded by consensus sequencing of that object. `derive_address` reads
 only. `release::new` touches no shared object: it reads each recording immutably through
-`new_track` and creates the release with `object::new`.
+`new_release_track` and creates the release with `object::new`.
 
 **MP-7 · Info · Open** — Works, releases and all three admin caps have no deletion path;
 storage deposits are permanent and a cap can only be retired by transferring it to an
@@ -106,10 +106,10 @@ unusable address.
   (`*_share.move:27-45`) can register a template's type, and only once (`ECurrencyAlreadyExists`).
 - **Money.** Exactly `SHARE_SUPPLY = 10^14` base units are minted into the returned `Balance`
   (`composition.move:22,64-75`); no later mint, burn or rounding path exists in core.
-- **Track proof.** `new_track` is the only production constructor of `Track`
-  (`release.move:53-55`); `track_for_testing` is stripped from published bytecode. It takes a
-  `&Recording`, and recordings are `key`-only with no deletion path, so every `Track` in a
-  release names a recording that exists. `Track` has `copy, drop, store` and grants no
+- **ReleaseTrack proof.** `new_release_track` is the only production constructor of `ReleaseTrack`
+  (`release.move:53-55`); `release_track_for_testing` is stripped from published bytecode. It takes a
+  `&Recording`, and recordings are `key`-only with no deletion path, so every `ReleaseTrack` in a
+  release names a recording that exists. `ReleaseTrack` has `copy, drop, store` and grants no
   authority, so copying one into another release is harmless.
 - **Distinctness.** `release::new` sorts the u256 forms and requires strict ascending order
   (`release.move:61-63`); adjacent and non-adjacent duplicates abort with `EDuplicateRecording`.

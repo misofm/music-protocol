@@ -70,7 +70,7 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
         release::release_published_event_fields(events.pop_back());
     assert_eq!(event_rel_id, rel_id);
     assert_eq!(event_cap_id, object::id(&cap));
-    assert_eq!(tracks, vector[release::track_for_testing(recording_id)]);
+    assert_eq!(tracks, vector[release::release_track_for_testing(recording_id)]);
 
     (cap, rel_id)
 }
