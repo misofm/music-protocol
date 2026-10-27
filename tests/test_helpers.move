@@ -5,7 +5,6 @@
 module miso_music::test_helpers;
 
 public struct CompositionShare() has drop;
-
 public struct RecordingShare() has drop;
 
 public fun fake_id(ctx: &mut TxContext): ID {
