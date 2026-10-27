@@ -49,7 +49,6 @@ fun anyone_releases_a_published_recording() {
     let release_id = object::id(&release);
     test_scenario::return_shared(recording);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
-
     release.publish(&release_cap);
 
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();

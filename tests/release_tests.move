@@ -169,7 +169,6 @@ fun release_published_event_at_max_tracks() {
     let recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64), ctx);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     let release_id = object::id(&release);
-
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
 
     release.publish(&cap);

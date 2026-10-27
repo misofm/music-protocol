@@ -30,7 +30,6 @@ fun publish_composition(
         composition::composition_published_event_fields(&events.pop_back());
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(event_composition_admin_cap_id, object::id(&cap));
-
     cap
 }
 
@@ -53,7 +52,6 @@ fun publish_recording(
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&cap));
     assert_eq!(event_composition_id, composition_id);
-
     cap
 }
 
@@ -71,7 +69,6 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
-
     (cap, release_id)
 }
 

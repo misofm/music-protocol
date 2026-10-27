@@ -57,7 +57,6 @@ public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, Rel
     let mut keys = recording_ids.map_ref!(|recording_id| recording_id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);
     assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
-
     new_internal!(object::new(ctx), recording_ids)
 }
 
