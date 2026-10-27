@@ -50,7 +50,6 @@ fun templates_create_composition_and_recording() {
     coin_registry::create_coin_data_registry_for_testing(scenario.ctx()).share_for_testing();
     composition::init_for_testing(scenario.ctx());
     recording::init_for_testing(scenario.ctx());
-
     scenario.next_tx(SONGWRITER);
     composition_template::init_for_testing(scenario.ctx());
     scenario.next_tx(SONGWRITER);
@@ -62,7 +61,6 @@ fun templates_create_composition_and_recording() {
         scenario.ctx(),
     );
     test_scenario::return_shared(registry);
-
     scenario.next_tx(SONGWRITER);
     let mut currency = scenario.take_shared<Currency<CompositionShare>>();
     let mut composition_registry = scenario.take_shared<CompositionRegistry>();
@@ -89,7 +87,6 @@ fun templates_create_composition_and_recording() {
     test_scenario::return_shared(currency);
     transfer::public_transfer(composition_cap, SONGWRITER);
     destroy(shares);
-
     scenario.next_tx(ARTIST);
     recording_template::init_for_testing(scenario.ctx());
     scenario.next_tx(ARTIST);
@@ -101,7 +98,6 @@ fun templates_create_composition_and_recording() {
         scenario.ctx(),
     );
     test_scenario::return_shared(registry);
-
     scenario.next_tx(ARTIST);
     let composition = scenario.take_shared<Composition<CompositionShare>>();
     let mut currency = scenario.take_shared<Currency<RecordingShare>>();
@@ -131,14 +127,12 @@ fun templates_create_composition_and_recording() {
     test_scenario::return_shared(currency);
     transfer::public_transfer(recording_cap, ARTIST);
     destroy(shares);
-
     scenario.next_tx(ARTIST);
     let mut recording = scenario.take_shared<Recording<RecordingShare>>();
     let recording_cap = scenario.take_from_sender<RecordingAdminCap<RecordingShare>>();
     assert_eq!(recording.uid_mut(&recording_cap).to_inner(), recording_id);
     test_scenario::return_shared(recording);
     scenario.return_to_sender(recording_cap);
-
     scenario.next_tx(SONGWRITER);
     let mut composition = scenario.take_shared<Composition<CompositionShare>>();
     let composition_cap = scenario.take_from_sender<CompositionAdminCap<CompositionShare>>();

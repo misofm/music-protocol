@@ -27,11 +27,9 @@ fun publish_shares_the_composition() {
     let ctx = scenario.ctx();
     let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
     composition.publish(&cap);
-
     scenario.next_tx(OWNER);
     let composition = scenario.take_shared<Composition<CompositionShare>>();
     test_scenario::return_shared(composition);
-
     destroy(cap);
     scenario.end();
 }

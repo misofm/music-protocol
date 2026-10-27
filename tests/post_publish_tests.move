@@ -23,7 +23,6 @@ fun publish_composition(
     let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
     let composition_id = object::id(&composition);
     composition.publish(&cap);
-
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(events.length(), 1);
     let (event_composition_id, event_composition_admin_cap_id) =
@@ -44,7 +43,6 @@ fun publish_recording(
     );
     let recording_id = object::id(&recording);
     recording.publish(&cap);
-
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     assert_eq!(events.length(), 1);
     let (event_recording_id, event_recording_admin_cap_id, event_composition_id) =
@@ -61,7 +59,6 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     let (release, cap) = release::new_for_testing(vector[recording_id], ctx);
     let release_id = object::id(&release);
     release.publish(&cap);
-
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
@@ -78,14 +75,12 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
 fun composition_uid_mut_works_after_publish() {
     let mut scenario = test_scenario::begin(OWNER);
     let cap = publish_composition(&mut scenario);
-
     scenario.next_tx(OWNER);
     let mut composition = scenario.take_shared<Composition<CompositionShare>>();
     dynamic_field::add(composition.uid_mut(&cap), b"extension", 42u64);
     assert!(dynamic_field::exists(composition.uid(), b"extension"));
     assert!(*dynamic_field::borrow<vector<u8>, u64>(composition.uid(), b"extension") == 42);
     test_scenario::return_shared(composition);
-
     destroy(cap);
     scenario.end();
 }
@@ -96,13 +91,11 @@ fun composition_uid_mut_works_after_publish() {
 fun recording_uid_mut_works_after_publish() {
     let mut scenario = test_scenario::begin(OWNER);
     let cap = publish_recording(&mut scenario);
-
     scenario.next_tx(OWNER);
     let mut recording = scenario.take_shared<Recording<RecordingShare>>();
     dynamic_field::add(recording.uid_mut(&cap), b"master", 7u64);
     assert!(dynamic_field::exists(recording.uid(), b"master"));
     test_scenario::return_shared(recording);
-
     destroy(cap);
     scenario.end();
 }
@@ -113,7 +106,6 @@ fun recording_uid_mut_works_after_publish() {
 fun release_publish_twice_emits_again() {
     let mut scenario = test_scenario::begin(OWNER);
     let (cap, release_id) = publish_release(&mut scenario);
-
     scenario.next_tx(OWNER);
     let release = scenario.take_shared<Release>();
     release.publish(&cap);
@@ -121,7 +113,6 @@ fun release_publish_twice_emits_again() {
     assert_eq!(events.length(), 1);
     let (event_release_id, _, _) = release::release_published_event_fields(&events.pop_back());
     assert_eq!(event_release_id, release_id);
-
     destroy(cap);
     scenario.end();
 }
@@ -130,13 +121,11 @@ fun release_publish_twice_emits_again() {
 fun release_uid_mut_works_after_publish() {
     let mut scenario = test_scenario::begin(OWNER);
     let (cap, _release_id) = publish_release(&mut scenario);
-
     scenario.next_tx(OWNER);
     let mut release = scenario.take_shared<Release>();
     dynamic_field::add(release.uid_mut(&cap), b"metadata", 9u64);
     assert!(dynamic_field::exists(release.uid(), b"metadata"));
     test_scenario::return_shared(release);
-
     destroy(cap);
     scenario.end();
 }
@@ -162,12 +151,10 @@ fun published_release_keeps_track_order() {
     let recording_ids = vector::tabulate!(3, |_| test_helpers::fake_id(ctx));
     let (release, cap) = release::new_for_testing(recording_ids, ctx);
     release.publish(&cap);
-
     scenario.next_tx(STRANGER);
     let release = scenario.take_shared<Release>();
     assert_eq!(*release.recording_ids(), recording_ids);
     test_scenario::return_shared(release);
-
     destroy(cap);
     scenario.end();
 }
@@ -179,12 +166,10 @@ fun release_dynamic_field_attached_before_publish_survives() {
     let (mut release, cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
     dynamic_field::add(release.uid_mut(&cap), b"cover", 5u64);
     release.publish(&cap);
-
     scenario.next_tx(STRANGER);
     let release = scenario.take_shared<Release>();
     assert_eq!(*dynamic_field::borrow<vector<u8>, u64>(release.uid(), b"cover"), 5);
     test_scenario::return_shared(release);
-
     destroy(cap);
     scenario.end();
 }
@@ -193,14 +178,11 @@ fun release_dynamic_field_attached_before_publish_survives() {
 fun release_uid_mut_wrong_cap_aborts() {
     let mut scenario = test_scenario::begin(OWNER);
     let (owner_cap, owner_release_id) = publish_release(&mut scenario);
-
     scenario.next_tx(STRANGER);
     let (stranger_cap, _stranger_release_id) = publish_release(&mut scenario);
-
     scenario.next_tx(STRANGER);
     let mut owner_release = test_scenario::take_shared_by_id<Release>(&scenario, owner_release_id);
     let _uid = owner_release.uid_mut(&stranger_cap);
-
     test_scenario::return_shared(owner_release);
     destroy(owner_cap);
     destroy(stranger_cap);

@@ -33,11 +33,9 @@ fun publish_shares_the_recording() {
         ctx,
     );
     recording.publish(&cap);
-
     scenario.next_tx(OWNER);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
     test_scenario::return_shared(recording);
-
     destroy(cap);
     scenario.end();
 }

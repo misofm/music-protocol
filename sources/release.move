@@ -52,7 +52,6 @@ public use fun release_admin_cap_release_id as ReleaseAdminCap.release_id;
 public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, ReleaseAdminCap) {
     assert!(!tracks.is_empty(), ENoTracks);
     assert!(tracks.length() <= (u8::max_value!() as u64), ETooManyTracks);
-
     let recording_ids = tracks.map!(|track| track.recording_id);
     let mut keys = recording_ids.map_ref!(|recording_id| recording_id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);

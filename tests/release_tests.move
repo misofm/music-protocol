@@ -151,12 +151,10 @@ fun release_views_reflect_the_new_release() {
     let recording_id = test_helpers::fake_id(ctx);
     let tracks = vector[release::new_release_track_for_testing(recording_id)];
     let (release, cap) = release::new(tracks, ctx);
-
     assert_eq!(release.recording_ids().length(), 1);
     assert_eq!(release.recording_ids()[0], recording_id);
     assert_eq!(cap.release_id(), object::id(&release));
     assert_eq!(release.uid().to_inner(), object::id(&release));
-
     destroy(release);
     destroy(cap);
 }
@@ -170,7 +168,6 @@ fun release_published_event_at_max_tracks() {
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     let release_id = object::id(&release);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
-
     release.publish(&cap);
     let cap_id = object::id(&cap);
     destroy(cap);

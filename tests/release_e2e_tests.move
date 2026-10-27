@@ -24,7 +24,6 @@ fun anyone_releases_a_published_recording() {
         composition::new_for_testing<CompositionShare>(scenario.ctx());
     composition.publish(&composition_cap);
     destroy(composition_cap);
-
     scenario.next_tx(ARTIST);
     let composition = scenario.take_shared<Composition<CompositionShare>>();
     let composition_id = object::id(&composition);
@@ -38,7 +37,6 @@ fun anyone_releases_a_published_recording() {
     let (event_recording_id, _, event_composition_id) =
         recording::recording_published_event_fields(&recording_events.pop_back());
     test_scenario::return_shared(composition);
-
     scenario.next_tx(CURATOR);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
     let recording_id = object::id(&recording);
@@ -49,9 +47,7 @@ fun anyone_releases_a_published_recording() {
     let release_id = object::id(&release);
     test_scenario::return_shared(recording);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
-
     release.publish(&release_cap);
-
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
     let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
@@ -62,13 +58,11 @@ fun anyone_releases_a_published_recording() {
     assert_eq!(event_recording_ids, vector[event_recording_id]);
     assert_eq!(event_composition_id, composition_id);
     destroy(release_cap);
-
     scenario.next_tx(READER);
     let release = scenario.take_shared<Release>();
     assert_eq!(object::id(&release), release_id);
     assert_eq!(release.recording_ids()[0], recording_id);
     test_scenario::return_shared(release);
-
     destroy(recording_cap);
     scenario.end();
 }
