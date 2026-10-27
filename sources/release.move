@@ -3,12 +3,9 @@
 
 module miso_music::release;
 
-// === Imports ===
-
-use std::u8;
-use sui::derived_object::claim;
-use sui::event::emit;
 use miso_music::recording::Recording;
+use std::u8;
+use sui::{derived_object::claim, event::emit};
 
 // === Errors ===
 
@@ -130,7 +127,7 @@ public fun new_release_track_for_testing(recording_id: ID): ReleaseTrack {
 public fun max_tracks_for_testing(): u8 { u8::max_value!() }
 
 #[test_only]
-public fun release_published_event_fields(
+public fun release_published_event_fields_for_testing(
     event: &ReleasePublishedEvent,
 ): (ID, ID, vector<ID>) {
     let ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids } = event;

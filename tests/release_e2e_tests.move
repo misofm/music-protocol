@@ -4,13 +4,14 @@
 #[test_only]
 module miso_music::release_e2e_tests;
 
+use miso_music::{
+    composition::{Self, Composition},
+    recording::{Self, Recording},
+    release::{Self, Release},
+    test_helpers::{CompositionShare, RecordingShare}
+};
 use std::unit_test::{assert_eq, destroy};
-use sui::event;
-use sui::test_scenario;
-use miso_music::composition::{Self, Composition};
-use miso_music::recording::{Self, Recording};
-use miso_music::release::{Self, Release};
-use miso_music::test_helpers::{CompositionShare, RecordingShare};
+use sui::{event, test_scenario};
 
 const SONGWRITER: address = @0xA1;
 const ARTIST: address = @0xA2;
@@ -20,8 +21,9 @@ const READER: address = @0xBEEF;
 #[test]
 fun anyone_releases_a_published_recording() {
     let mut scenario = test_scenario::begin(SONGWRITER);
-    let (composition, composition_cap) =
-        composition::new_for_testing<CompositionShare>(scenario.ctx());
+    let (composition, composition_cap) = composition::new_for_testing<
+        CompositionShare,
+    >(scenario.ctx());
     composition.publish(&composition_cap);
     destroy(composition_cap);
     scenario.next_tx(ARTIST);
@@ -32,10 +34,14 @@ fun anyone_releases_a_published_recording() {
         scenario.ctx(),
     );
     recording.publish(&recording_cap);
-    let mut recording_events =
-        event::events_by_type<recording::RecordingPublishedEvent<RecordingShare>>();
-    let (event_recording_id, _, event_composition_id) =
-        recording::recording_published_event_fields(&recording_events.pop_back());
+    let mut recording_events = event::events_by_type<
+        recording::RecordingPublishedEvent<RecordingShare>,
+    >();
+    let (
+        event_recording_id,
+        _,
+        event_composition_id,
+    ) = recording::recording_published_event_fields_for_testing(&recording_events.pop_back());
     test_scenario::return_shared(composition);
     scenario.next_tx(CURATOR);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
@@ -50,8 +56,11 @@ fun anyone_releases_a_published_recording() {
     release.publish(&release_cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(&published_events.pop_back());
+    let (
+        event_release_id,
+        event_release_admin_cap_id,
+        event_recording_ids,
+    ) = release::release_published_event_fields_for_testing(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&release_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);

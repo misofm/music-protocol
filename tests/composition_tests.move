@@ -4,10 +4,9 @@
 #[test_only]
 module miso_music::composition_tests;
 
+use miso_music::{composition::{Self, Composition}, test_helpers::CompositionShare};
 use std::unit_test::destroy;
 use sui::test_scenario;
-use miso_music::composition::{Self, Composition};
-use miso_music::test_helpers::CompositionShare;
 
 const OWNER: address = @0xA1;
 

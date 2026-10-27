@@ -5,11 +5,18 @@
 module miso_music::composition_share;
 
 use std::string::String;
-use sui::coin::{TreasuryCap, DenyCapV2};
-use sui::coin_registry::{Self, Currency, CoinRegistry, MetadataCap};
+use sui::{
+    coin::{DenyCapV2, TreasuryCap},
+    coin_registry::{Self, CoinRegistry, Currency, MetadataCap}
+};
 
-public struct CompositionShare has key { id: UID }
-public struct WrongName has key { id: UID }
+public struct CompositionShare has key {
+    id: UID,
+}
+
+public struct WrongName has key {
+    id: UID,
+}
 
 public fun registry(ctx: &mut TxContext): CoinRegistry {
     coin_registry::create_coin_data_registry_for_testing(ctx)

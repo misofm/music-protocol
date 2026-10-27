@@ -4,39 +4,37 @@
 #[test_only]
 module miso_music::production_constructor_tests;
 
-use std::unit_test::{assert_eq, destroy};
-use sui::balance::Balance;
-use sui::coin::TreasuryCap;
-use sui::coin_registry::{Self, CoinRegistry, Currency};
-use sui::event;
-use sui::test_scenario;
-use share::share;
 use composition_share::composition_share::{
     Self as composition_template,
     CompositionShare,
     InitializeCurrencyTicket as CompositionTicket,
+};
+use miso_music::{
+    composition::{
+        Self,
+        Composition,
+        CompositionAdminCap,
+        CompositionPublishedEvent,
+        CompositionRegistry,
+    },
+    composition_share as fixture,
+    recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent, RecordingRegistry},
+    wrong_module
 };
 use recording_share::recording_share::{
     Self as recording_template,
     RecordingShare,
     InitializeCurrencyTicket as RecordingTicket,
 };
-use miso_music::composition::{
-    Self,
-    Composition,
-    CompositionAdminCap,
-    CompositionPublishedEvent,
-    CompositionRegistry,
+use share::share;
+use std::unit_test::{assert_eq, destroy};
+use sui::{
+    balance::Balance,
+    coin::TreasuryCap,
+    coin_registry::{Self, CoinRegistry, Currency},
+    event,
+    test_scenario
 };
-use miso_music::composition_share as fixture;
-use miso_music::recording::{
-    Self,
-    Recording,
-    RecordingAdminCap,
-    RecordingPublishedEvent,
-    RecordingRegistry,
-};
-use miso_music::wrong_module;
 
 const SYSTEM: address = @0x0;
 const SONGWRITER: address = @0xA1;
@@ -80,8 +78,10 @@ fun templates_create_composition_and_recording() {
     assert_eq!(currency.total_supply(), option::some(composition::share_supply_for_testing()));
     composition.publish(&composition_cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
-    let (event_composition_id, event_composition_admin_cap_id) =
-        composition::composition_published_event_fields(&events.pop_back());
+    let (
+        event_composition_id,
+        event_composition_admin_cap_id,
+    ) = composition::composition_published_event_fields_for_testing(&events.pop_back());
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(event_composition_admin_cap_id, object::id(&composition_cap));
     test_scenario::return_shared(currency);
@@ -118,8 +118,11 @@ fun templates_create_composition_and_recording() {
     assert_eq!(shares.value(), recording::share_supply_for_testing());
     recording.publish(&recording_cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
-    let (event_recording_id, event_recording_admin_cap_id, event_composition_id) =
-        recording::recording_published_event_fields(&events.pop_back());
+    let (
+        event_recording_id,
+        event_recording_admin_cap_id,
+        event_composition_id,
+    ) = recording::recording_published_event_fields_for_testing(&events.pop_back());
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&recording_cap));
     assert_eq!(event_composition_id, composition_id);
@@ -193,8 +196,9 @@ fun composition_type_rejected_for_recording() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (mut currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
-    let (composition, composition_cap) =
-        composition::new_for_testing<fixture::CompositionShare>(ctx);
+    let (composition, composition_cap) = composition::new_for_testing<fixture::CompositionShare>(
+        ctx,
+    );
     let mut recording_registry = recording::new_recording_registry_for_testing(ctx);
     let (recording, recording_cap, shares) = recording::new(
         &mut recording_registry,
@@ -257,8 +261,13 @@ fun wrong_decimals_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 9, b"CSHARE".to_string(), b"Composition Share".to_string(),
-        b"".to_string(), b"".to_string(), ctx,
+        &mut registry,
+        9,
+        b"CSHARE".to_string(),
+        b"Composition Share".to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);
 }
@@ -268,8 +277,13 @@ fun wrong_name_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 6, b"CSHARE".to_string(), b"Miso Music Composition Share".to_string(),
-        b"".to_string(), b"".to_string(), ctx,
+        &mut registry,
+        6,
+        b"CSHARE".to_string(),
+        b"Miso Music Composition Share".to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);
 }
@@ -279,8 +293,13 @@ fun wrong_symbol_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 6, b"RSHARE".to_string(), b"Composition Share".to_string(),
-        b"".to_string(), b"".to_string(), ctx,
+        &mut registry,
+        6,
+        b"RSHARE".to_string(),
+        b"Composition Share".to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);
 }
@@ -290,8 +309,13 @@ fun nonempty_description_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 6, b"CSHARE".to_string(), b"Composition Share".to_string(),
-        b"A song".to_string(), b"".to_string(), ctx,
+        &mut registry,
+        6,
+        b"CSHARE".to_string(),
+        b"Composition Share".to_string(),
+        b"A song".to_string(),
+        b"".to_string(),
+        ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);
 }
@@ -301,8 +325,13 @@ fun nonempty_icon_rejected() {
     let ctx = &mut tx_context::dummy();
     let mut registry = fixture::registry(ctx);
     let (currency, treasury_cap) = fixture::custom(
-        &mut registry, 6, b"CSHARE".to_string(), b"Composition Share".to_string(),
-        b"".to_string(), b"https://example.com/icon.png".to_string(), ctx,
+        &mut registry,
+        6,
+        b"CSHARE".to_string(),
+        b"Composition Share".to_string(),
+        b"".to_string(),
+        b"https://example.com/icon.png".to_string(),
+        ctx,
     );
     new_composition(currency, treasury_cap, registry, ctx);
 }

@@ -4,14 +4,14 @@
 #[test_only]
 module miso_music::post_publish_tests;
 
+use miso_music::{
+    composition::{Self, Composition, CompositionPublishedEvent},
+    recording::{Self, Recording, RecordingPublishedEvent},
+    release::{Self, Release, ReleasePublishedEvent},
+    test_helpers::{Self, CompositionShare, RecordingShare}
+};
 use std::unit_test::{assert_eq, destroy};
-use sui::dynamic_field;
-use sui::event;
-use sui::test_scenario;
-use miso_music::composition::{Self, Composition, CompositionPublishedEvent};
-use miso_music::recording::{Self, Recording, RecordingPublishedEvent};
-use miso_music::release::{Self, Release, ReleasePublishedEvent};
-use miso_music::test_helpers::{Self, CompositionShare, RecordingShare};
+use sui::{dynamic_field, event, test_scenario};
 
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
@@ -25,8 +25,10 @@ fun publish_composition(
     composition.publish(&cap);
     let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
     assert_eq!(events.length(), 1);
-    let (event_composition_id, event_composition_admin_cap_id) =
-        composition::composition_published_event_fields(&events.pop_back());
+    let (
+        event_composition_id,
+        event_composition_admin_cap_id,
+    ) = composition::composition_published_event_fields_for_testing(&events.pop_back());
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(event_composition_admin_cap_id, object::id(&cap));
     cap
@@ -45,8 +47,11 @@ fun publish_recording(
     recording.publish(&cap);
     let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
     assert_eq!(events.length(), 1);
-    let (event_recording_id, event_recording_admin_cap_id, event_composition_id) =
-        recording::recording_published_event_fields(&events.pop_back());
+    let (
+        event_recording_id,
+        event_recording_admin_cap_id,
+        event_composition_id,
+    ) = recording::recording_published_event_fields_for_testing(&events.pop_back());
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&cap));
     assert_eq!(event_composition_id, composition_id);
@@ -61,8 +66,11 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
     release.publish(&cap);
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert!(!events.is_empty());
-    let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(&events.pop_back());
+    let (
+        event_release_id,
+        event_release_admin_cap_id,
+        event_recording_ids,
+    ) = release::release_published_event_fields_for_testing(&events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
@@ -111,7 +119,9 @@ fun release_publish_twice_emits_again() {
     release.publish(&cap);
     let mut events = event::events_by_type<ReleasePublishedEvent>();
     assert_eq!(events.length(), 1);
-    let (event_release_id, _, _) = release::release_published_event_fields(&events.pop_back());
+    let (event_release_id, _, _) = release::release_published_event_fields_for_testing(
+        &events.pop_back(),
+    );
     assert_eq!(event_release_id, release_id);
     destroy(cap);
     scenario.end();

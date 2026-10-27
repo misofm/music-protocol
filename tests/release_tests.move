@@ -4,11 +4,9 @@
 #[test_only]
 module miso_music::release_tests;
 
+use miso_music::{recording, release::{Self, ReleaseTrack}, test_helpers::{Self, RecordingShare}};
 use std::unit_test::{assert_eq, destroy};
 use sui::event;
-use miso_music::recording;
-use miso_music::release::{Self, ReleaseTrack};
-use miso_music::test_helpers::{Self, RecordingShare};
 
 fun fake_recording_ids(track_count: u64, ctx: &mut TxContext): vector<ID> {
     vector::tabulate!(track_count, |_| test_helpers::fake_id(ctx))
@@ -173,8 +171,11 @@ fun release_published_event_at_max_tracks() {
     destroy(cap);
     let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
     assert_eq!(published_events.length(), 1);
-    let (event_release_id, event_release_admin_cap_id, event_recording_ids) =
-        release::release_published_event_fields(&published_events.pop_back());
+    let (
+        event_release_id,
+        event_release_admin_cap_id,
+        event_recording_ids,
+    ) = release::release_published_event_fields_for_testing(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, cap_id);
     assert_eq!(event_recording_ids, recording_ids);

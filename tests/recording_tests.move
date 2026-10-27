@@ -4,10 +4,9 @@
 #[test_only]
 module miso_music::recording_tests;
 
+use miso_music::{recording::{Self, Recording}, test_helpers::{Self, RecordingShare}};
 use std::unit_test::destroy;
 use sui::test_scenario;
-use miso_music::recording::{Self, Recording};
-use miso_music::test_helpers::{Self, RecordingShare};
 
 const OWNER: address = @0xA1;
 

@@ -3,10 +3,7 @@
 
 module composition_share::composition_share;
 
-// === Imports ===
-
-use sui::coin::TreasuryCap;
-use sui::coin_registry::{Self, CoinRegistry};
+use sui::{coin::TreasuryCap, coin_registry::{Self, CoinRegistry}};
 
 // === Structs ===
 
@@ -48,5 +45,5 @@ public fun initialize_currency(
 
 #[test_only]
 public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx)
+    init(ctx);
 }

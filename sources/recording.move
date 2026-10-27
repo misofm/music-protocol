@@ -3,15 +3,15 @@
 
 module miso_music::recording;
 
-// === Imports ===
-
-use sui::balance::Balance;
-use sui::coin::TreasuryCap;
-use sui::coin_registry::Currency;
-use sui::derived_object::{Self, claim};
-use sui::event::emit;
-use share::share;
 use miso_music::composition::Composition;
+use share::share;
+use sui::{
+    balance::Balance,
+    coin::TreasuryCap,
+    coin_registry::Currency,
+    derived_object::{Self, claim},
+    event::emit
+};
 
 // === Constants ===
 
@@ -157,7 +157,7 @@ public fun new_recording_registry_for_testing(ctx: &mut TxContext): RecordingReg
 public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
-public fun recording_published_event_fields<RecordingShare>(
+public fun recording_published_event_fields_for_testing<RecordingShare>(
     event: &RecordingPublishedEvent<RecordingShare>,
 ): (ID, ID, ID) {
     let RecordingPublishedEvent { recording_id, recording_admin_cap_id, composition_id } = event;

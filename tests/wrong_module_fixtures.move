@@ -4,10 +4,11 @@
 #[test_only]
 module miso_music::wrong_module;
 
-use sui::coin::TreasuryCap;
-use sui::coin_registry::{Self, Currency, CoinRegistry};
+use sui::{coin::TreasuryCap, coin_registry::{Self, CoinRegistry, Currency}};
 
-public struct CompositionShare has key { id: UID }
+public struct CompositionShare has key {
+    id: UID,
+}
 
 public fun canonical(
     registry: &mut CoinRegistry,

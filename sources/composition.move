@@ -3,14 +3,14 @@
 
 module miso_music::composition;
 
-// === Imports ===
-
-use sui::balance::Balance;
-use sui::coin::TreasuryCap;
-use sui::coin_registry::Currency;
-use sui::derived_object::{Self, claim};
-use sui::event::emit;
 use share::share;
+use sui::{
+    balance::Balance,
+    coin::TreasuryCap,
+    coin_registry::Currency,
+    derived_object::{Self, claim},
+    event::emit
+};
 
 // === Constants ===
 
@@ -145,7 +145,7 @@ public fun new_composition_registry_for_testing(ctx: &mut TxContext): Compositio
 public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
-public fun composition_published_event_fields<CompositionShare>(
+public fun composition_published_event_fields_for_testing<CompositionShare>(
     event: &CompositionPublishedEvent<CompositionShare>,
 ): (ID, ID) {
     let CompositionPublishedEvent { composition_id, composition_admin_cap_id } = event;
