@@ -25,7 +25,7 @@ no package or registry IDs to depend on.
 | `templates/` | The `composition_share` and `recording_share` coin templates; each work publishes an unchanged copy |
 | `tests/` | Unit and end-to-end tests, with the templates as test-only dependencies |
 
-The one Move dependency is [share](https://github.com/misofm/share), pinned in
+The one Move dependency is [share](https://github.com/unconfirmedlabs/share), pinned in
 `Move.toml`. Sui framework versions are pinned in `Move.lock`.
 
 ## Build and test
@@ -34,10 +34,6 @@ The one Move dependency is [share](https://github.com/misofm/share), pinned in
 sui move build
 sui move test
 ```
-
-## Security
-
-See [AUDIT.md](AUDIT.md).
 
 ## License
 
