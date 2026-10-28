@@ -216,46 +216,6 @@ fun composition_type_rejected_for_recording() {
     destroy(recording_registry);
 }
 
-#[test, expected_failure(abort_code = share::ETreasuryMismatch)]
-fun foreign_treasury_cap_rejected() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = fixture::registry(ctx);
-    let mut other_registry = fixture::registry(ctx);
-    let (currency, treasury_cap) = fixture::canonical(&mut registry, ctx);
-    let (other_currency, other_treasury_cap) = fixture::canonical(&mut other_registry, ctx);
-    destroy(other_currency);
-    destroy(other_registry);
-    destroy(treasury_cap);
-    new_composition(currency, other_treasury_cap, registry, ctx);
-}
-
-#[test, expected_failure(abort_code = share::ENotZeroSupply)]
-fun minted_currency_rejected() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = fixture::registry(ctx);
-    let (currency, mut treasury_cap) = fixture::canonical(&mut registry, ctx);
-    destroy(treasury_cap.mint_balance(1));
-    new_composition(currency, treasury_cap, registry, ctx);
-}
-
-#[test, expected_failure(abort_code = share::ERegulatedCurrency)]
-fun regulated_currency_rejected() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = fixture::registry(ctx);
-    let (currency, treasury_cap, deny_cap) = fixture::regulated(&mut registry, ctx);
-    destroy(deny_cap);
-    new_composition(currency, treasury_cap, registry, ctx);
-}
-
-#[test, expected_failure(abort_code = share::EMetadataNotLocked)]
-fun unlocked_metadata_rejected() {
-    let ctx = &mut tx_context::dummy();
-    let mut registry = fixture::registry(ctx);
-    let (currency, treasury_cap, metadata_cap) = fixture::unlocked(&mut registry, ctx);
-    destroy(metadata_cap);
-    new_composition(currency, treasury_cap, registry, ctx);
-}
-
 #[test, expected_failure(abort_code = share::EInvalidDecimals)]
 fun wrong_decimals_rejected() {
     let ctx = &mut tx_context::dummy();

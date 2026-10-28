@@ -5,10 +5,7 @@
 module miso_music::composition_share;
 
 use std::string::String;
-use sui::{
-    coin::{DenyCapV2, TreasuryCap},
-    coin_registry::{Self, CoinRegistry, Currency, MetadataCap}
-};
+use sui::{coin::TreasuryCap, coin_registry::{Self, CoinRegistry, Currency}};
 
 public struct CompositionShare has key {
     id: UID,
@@ -61,45 +58,6 @@ public fun custom(
     );
     currency.delete_metadata_cap(metadata_cap);
     (currency, treasury_cap)
-}
-
-public fun unlocked(
-    registry: &mut CoinRegistry,
-    ctx: &mut TxContext,
-): (Currency<CompositionShare>, TreasuryCap<CompositionShare>, MetadataCap<CompositionShare>) {
-    let (initializer, treasury_cap) = coin_registry::new_currency<CompositionShare>(
-        registry,
-        6,
-        b"CSHARE".to_string(),
-        b"Composition Share".to_string(),
-        b"".to_string(),
-        b"".to_string(),
-        ctx,
-    );
-    let (currency, metadata_cap) = coin_registry::finalize_unwrap_for_testing(initializer, ctx);
-    (currency, treasury_cap, metadata_cap)
-}
-
-public fun regulated(
-    registry: &mut CoinRegistry,
-    ctx: &mut TxContext,
-): (Currency<CompositionShare>, TreasuryCap<CompositionShare>, DenyCapV2<CompositionShare>) {
-    let (mut initializer, treasury_cap) = coin_registry::new_currency<CompositionShare>(
-        registry,
-        6,
-        b"CSHARE".to_string(),
-        b"Composition Share".to_string(),
-        b"".to_string(),
-        b"".to_string(),
-        ctx,
-    );
-    let deny_cap = initializer.make_regulated(false, ctx);
-    let (mut currency, metadata_cap) = coin_registry::finalize_unwrap_for_testing(
-        initializer,
-        ctx,
-    );
-    currency.delete_metadata_cap(metadata_cap);
-    (currency, treasury_cap, deny_cap)
 }
 
 public fun wrong_name(

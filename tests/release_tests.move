@@ -5,7 +5,7 @@
 module miso_music::release_tests;
 
 use miso_music::{recording, release::{Self, ReleaseTrack}, test_helpers::{Self, RecordingShare}};
-use std::unit_test::{assert_eq, destroy};
+use std::{u8, unit_test::{assert_eq, destroy}};
 use sui::event;
 
 fun fake_recording_ids(track_count: u64, ctx: &mut TxContext): vector<ID> {
@@ -38,7 +38,7 @@ fun new_with_duplicate_recording_aborts() {
 #[test, expected_failure(abort_code = release::ETooManyTracks)]
 fun new_above_max_tracks_aborts() {
     let ctx = &mut tx_context::dummy();
-    let recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64) + 1, ctx);
+    let recording_ids = fake_recording_ids((u8::max_value!() as u64) + 1, ctx);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     destroy(release);
     destroy(cap);
@@ -47,7 +47,7 @@ fun new_above_max_tracks_aborts() {
 #[test, expected_failure(abort_code = release::ETooManyTracks)]
 fun new_above_max_tracks_with_duplicate_aborts_too_many() {
     let ctx = &mut tx_context::dummy();
-    let mut recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64), ctx);
+    let mut recording_ids = fake_recording_ids((u8::max_value!() as u64), ctx);
     let repeated = recording_ids[0];
     recording_ids.push_back(repeated);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
@@ -58,8 +58,8 @@ fun new_above_max_tracks_with_duplicate_aborts_too_many() {
 #[test, expected_failure(abort_code = release::EDuplicateRecording)]
 fun new_at_max_tracks_with_duplicate_aborts() {
     let ctx = &mut tx_context::dummy();
-    let mut recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64) - 1, ctx);
-    let repeated = recording_ids[200];
+    let mut recording_ids = fake_recording_ids((u8::max_value!() as u64) - 1, ctx);
+    let repeated = recording_ids[0];
     recording_ids.push_back(repeated);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     destroy(release);
@@ -78,7 +78,7 @@ fun new_with_adjacent_duplicate_aborts() {
 #[test]
 fun new_at_max_tracks_keeps_order() {
     let ctx = &mut tx_context::dummy();
-    let recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64), ctx);
+    let recording_ids = fake_recording_ids((u8::max_value!() as u64), ctx);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     assert_eq!(*release.recording_ids(), recording_ids);
     destroy(release);
@@ -162,7 +162,7 @@ fun release_views_reflect_the_new_release() {
 #[test]
 fun release_published_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
-    let recording_ids = fake_recording_ids((release::max_tracks_for_testing() as u64), ctx);
+    let recording_ids = fake_recording_ids((u8::max_value!() as u64), ctx);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     let release_id = object::id(&release);
     assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);

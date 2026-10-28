@@ -124,9 +124,6 @@ public fun new_release_track_for_testing(recording_id: ID): ReleaseTrack {
 }
 
 #[test_only]
-public fun max_tracks_for_testing(): u8 { u8::max_value!() }
-
-#[test_only]
 public fun release_published_event_fields_for_testing(
     event: &ReleasePublishedEvent,
 ): (ID, ID, vector<ID>) {
