@@ -2,10 +2,10 @@
 name = "miso_music"
 edition = "2024"
 license = "Apache-2.0"
-authors = ["Miso Labs, Inc. (build@miso.fm)"]
+authors = ["Miso Labs, Inc. (contact@miso.fm)"]
 
 [dependencies]
-share = { git = "https://github.com/unconfirmedlabs/share.git", rev = "b7c15d1c781fb6c63abe1b0a5ff6e477e39e512b" }
+share = { git = "https://github.com/unconfirmedlabs/share.git", rev = "34cbaebe9230b2ae71119bc4f1f1762170bbeefc" }
 
 composition_share = { local = "templates/composition_share", modes = ["test"] }
 recording_share = { local = "templates/recording_share", modes = ["test"] }
