@@ -66,6 +66,10 @@ public fun new_release_track<RecordingShare>(recording: &Recording<RecordingShar
     ReleaseTrack { recording_id: object::id(recording) }
 }
 
+public fun share(self: Release) {
+    transfer::share_object(self);
+}
+
 // === View Functions ===
 
 public fun recording_ids(self: &Release): &vector<ID> {
@@ -81,10 +85,6 @@ public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
 }
 
 // === Admin Functions ===
-
-public fun share(self: Release) {
-    transfer::share_object(self);
-}
 
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
     self.authorize(cap);

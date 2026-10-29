@@ -86,6 +86,10 @@ public fun new<RecordingShare: key, CompositionShare>(
     (recording, cap, shares)
 }
 
+public fun share<RecordingShare>(self: Recording<RecordingShare>) {
+    transfer::share_object(self);
+}
+
 // === View Functions ===
 
 public fun derive_address<RecordingShare>(registry: &RecordingRegistry): address {
@@ -101,10 +105,6 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 }
 
 // === Admin Functions ===
-
-public fun share<RecordingShare>(self: Recording<RecordingShare>) {
-    transfer::share_object(self);
-}
 
 public fun uid_mut<RecordingShare>(
     self: &mut Recording<RecordingShare>,

@@ -83,6 +83,10 @@ public fun new<CompositionShare: key>(
     (composition, cap, shares)
 }
 
+public fun share<CompositionShare>(self: Composition<CompositionShare>) {
+    transfer::share_object(self);
+}
+
 // === View Functions ===
 
 public fun derive_address<CompositionShare>(registry: &CompositionRegistry): address {
@@ -94,10 +98,6 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 }
 
 // === Admin Functions ===
-
-public fun share<CompositionShare>(self: Composition<CompositionShare>) {
-    transfer::share_object(self);
-}
 
 public fun uid_mut<CompositionShare>(
     self: &mut Composition<CompositionShare>,
