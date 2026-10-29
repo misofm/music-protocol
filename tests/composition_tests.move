@@ -21,11 +21,11 @@ fun new_returns_composition_and_cap() {
 }
 
 #[test]
-fun publish_shares_the_composition() {
+fun shares_the_composition() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    composition.publish(&cap);
+    composition.share();
     scenario.next_tx(OWNER);
     let composition = scenario.take_shared<Composition<CompositionShare>>();
     test_scenario::return_shared(composition);

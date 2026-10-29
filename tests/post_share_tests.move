@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[test_only]
-module miso_music::post_publish_tests;
+module miso_music::post_share_tests;
 
 use miso_music::{
     composition::{Self, Composition},
@@ -16,16 +16,16 @@ use sui::{dynamic_field, event, test_scenario};
 const OWNER: address = @0xA1;
 const STRANGER: address = @0x51;
 
-fun publish_composition(
+fun share_composition(
     scenario: &mut test_scenario::Scenario,
 ): composition::CompositionAdminCap<CompositionShare> {
     let ctx = scenario.ctx();
     let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    composition.publish(&cap);
+    composition.share();
     cap
 }
 
-fun publish_recording(
+fun share_recording(
     scenario: &mut test_scenario::Scenario,
 ): recording::RecordingAdminCap<RecordingShare> {
     let ctx = scenario.ctx();
@@ -34,11 +34,11 @@ fun publish_recording(
         composition_id,
         ctx,
     );
-    recording.publish(&cap);
+    recording.share();
     cap
 }
 
-fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAdminCap, ID) {
+fun share_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAdminCap, ID) {
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
     let (release, cap) = release::new(
@@ -46,7 +46,7 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
         ctx,
     );
     let release_id = object::id(&release);
-    release.publish(&cap);
+    release.share();
     let mut events = event::events_by_type<ReleaseCreatedEvent>();
     assert_eq!(events.length(), 1);
     let (
@@ -63,9 +63,9 @@ fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAd
 // === Composition ===
 
 #[test]
-fun composition_uid_mut_works_after_publish() {
+fun composition_uid_mut_works_after_share() {
     let mut scenario = test_scenario::begin(OWNER);
-    let cap = publish_composition(&mut scenario);
+    let cap = share_composition(&mut scenario);
     scenario.next_tx(OWNER);
     let mut composition = scenario.take_shared<Composition<CompositionShare>>();
     dynamic_field::add(composition.uid_mut(&cap), b"extension", 42u64);
@@ -79,9 +79,9 @@ fun composition_uid_mut_works_after_publish() {
 // === Recording ===
 
 #[test]
-fun recording_uid_mut_works_after_publish() {
+fun recording_uid_mut_works_after_share() {
     let mut scenario = test_scenario::begin(OWNER);
-    let cap = publish_recording(&mut scenario);
+    let cap = share_recording(&mut scenario);
     scenario.next_tx(OWNER);
     let mut recording = scenario.take_shared<Recording<RecordingShare>>();
     dynamic_field::add(recording.uid_mut(&cap), b"master", 7u64);
@@ -94,12 +94,12 @@ fun recording_uid_mut_works_after_publish() {
 // === Release ===
 
 #[test]
-fun release_publish_twice_emits_nothing() {
+fun release_share_twice_emits_nothing() {
     let mut scenario = test_scenario::begin(OWNER);
-    let (cap, release_id) = publish_release(&mut scenario);
+    let (cap, release_id) = share_release(&mut scenario);
     scenario.next_tx(OWNER);
     let release = scenario.take_shared<Release>();
-    release.publish(&cap);
+    release.share();
     assert_eq!(event::events_by_type<ReleaseCreatedEvent>().length(), 0);
     assert_eq!(release_id, cap.release_id());
     destroy(cap);
@@ -107,9 +107,9 @@ fun release_publish_twice_emits_nothing() {
 }
 
 #[test]
-fun release_uid_mut_works_after_publish() {
+fun release_uid_mut_works_after_share() {
     let mut scenario = test_scenario::begin(OWNER);
-    let (cap, _release_id) = publish_release(&mut scenario);
+    let (cap, _release_id) = share_release(&mut scenario);
     scenario.next_tx(OWNER);
     let mut release = scenario.take_shared<Release>();
     dynamic_field::add(release.uid_mut(&cap), b"metadata", 9u64);
@@ -119,27 +119,13 @@ fun release_uid_mut_works_after_publish() {
     scenario.end();
 }
 
-#[test, expected_failure(abort_code = release::EUnauthorized)]
-fun release_publish_with_foreign_cap_aborts() {
-    let ctx = &mut tx_context::dummy();
-    let (release, cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
-    let (other_release, other_cap) = release::new_for_testing(
-        vector[test_helpers::fake_id(ctx)],
-        ctx,
-    );
-    release.publish(&other_cap);
-    destroy(cap);
-    destroy(other_release);
-    abort
-}
-
 #[test]
-fun published_release_keeps_track_order() {
+fun shared_release_keeps_track_order() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let recording_ids = vector::tabulate!(3, |_| test_helpers::fake_id(ctx));
     let (release, cap) = release::new_for_testing(recording_ids, ctx);
-    release.publish(&cap);
+    release.share();
     scenario.next_tx(STRANGER);
     let release = scenario.take_shared<Release>();
     assert_eq!(*release.recording_ids(), recording_ids);
@@ -149,12 +135,12 @@ fun published_release_keeps_track_order() {
 }
 
 #[test]
-fun release_dynamic_field_attached_before_publish_survives() {
+fun release_dynamic_field_attached_before_share_survives() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let (mut release, cap) = release::new_for_testing(vector[test_helpers::fake_id(ctx)], ctx);
     dynamic_field::add(release.uid_mut(&cap), b"cover", 5u64);
-    release.publish(&cap);
+    release.share();
     scenario.next_tx(STRANGER);
     let release = scenario.take_shared<Release>();
     assert_eq!(*dynamic_field::borrow<vector<u8>, u64>(release.uid(), b"cover"), 5);
@@ -166,9 +152,9 @@ fun release_dynamic_field_attached_before_publish_survives() {
 #[test, expected_failure(abort_code = release::EUnauthorized)]
 fun release_uid_mut_wrong_cap_aborts() {
     let mut scenario = test_scenario::begin(OWNER);
-    let (owner_cap, owner_release_id) = publish_release(&mut scenario);
+    let (owner_cap, owner_release_id) = share_release(&mut scenario);
     scenario.next_tx(STRANGER);
-    let (stranger_cap, _stranger_release_id) = publish_release(&mut scenario);
+    let (stranger_cap, _stranger_release_id) = share_release(&mut scenario);
     scenario.next_tx(STRANGER);
     let mut owner_release = test_scenario::take_shared_by_id<Release>(&scenario, owner_release_id);
     let _uid = owner_release.uid_mut(&stranger_cap);

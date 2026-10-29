@@ -19,12 +19,12 @@ const CURATOR: address = @0xA3;
 const READER: address = @0xBEEF;
 
 #[test]
-fun anyone_releases_a_published_recording() {
+fun anyone_releases_a_shared_recording() {
     let mut scenario = test_scenario::begin(SONGWRITER);
     let (composition, composition_cap) = composition::new_for_testing<
         CompositionShare,
     >(scenario.ctx());
-    composition.publish(&composition_cap);
+    composition.share();
     destroy(composition_cap);
     scenario.next_tx(ARTIST);
     let composition = scenario.take_shared<Composition<CompositionShare>>();
@@ -34,7 +34,7 @@ fun anyone_releases_a_published_recording() {
         scenario.ctx(),
     );
     let recording_id = object::id(&recording);
-    recording.publish(&recording_cap);
+    recording.share();
     test_scenario::return_shared(composition);
     scenario.next_tx(CURATOR);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
@@ -46,17 +46,17 @@ fun anyone_releases_a_published_recording() {
     );
     let release_id = object::id(&release);
     test_scenario::return_shared(recording);
-    let mut published_events = event::events_by_type<release::ReleaseCreatedEvent>();
-    assert_eq!(published_events.length(), 1);
+    let mut created_events = event::events_by_type<release::ReleaseCreatedEvent>();
+    assert_eq!(created_events.length(), 1);
     let (
         event_release_id,
         event_release_admin_cap_id,
         event_recording_ids,
-    ) = release::release_created_fields_for_testing(&published_events.pop_back());
+    ) = release::release_created_fields_for_testing(&created_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&release_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
-    release.publish(&release_cap);
+    release.share();
     assert_eq!(event::events_by_type<release::ReleaseCreatedEvent>().length(), 1);
     destroy(release_cap);
     scenario.next_tx(READER);

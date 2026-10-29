@@ -166,13 +166,13 @@ fun release_created_event_at_max_tracks() {
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     let release_id = object::id(&release);
     let cap_id = object::id(&cap);
-    let mut published_events = event::events_by_type<release::ReleaseCreatedEvent>();
-    assert_eq!(published_events.length(), 1);
+    let mut created_events = event::events_by_type<release::ReleaseCreatedEvent>();
+    assert_eq!(created_events.length(), 1);
     let (
         event_release_id,
         event_release_admin_cap_id,
         event_recording_ids,
-    ) = release::release_created_fields_for_testing(&published_events.pop_back());
+    ) = release::release_created_fields_for_testing(&created_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, cap_id);
     assert_eq!(event_recording_ids, recording_ids);
@@ -183,7 +183,7 @@ fun release_created_event_at_max_tracks() {
 // === Authorization ===
 
 #[test]
-fun uid_mut_accepts_the_release_cap_before_publish() {
+fun uid_mut_accepts_the_release_cap_before_share() {
     let ctx = &mut tx_context::dummy();
     let (mut release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
     release.uid_mut(&cap);
@@ -192,7 +192,7 @@ fun uid_mut_accepts_the_release_cap_before_publish() {
 }
 
 #[test, expected_failure(abort_code = release::EUnauthorized)]
-fun uid_mut_rejects_another_release_cap_before_publish() {
+fun uid_mut_rejects_another_release_cap_before_share() {
     let ctx = &mut tx_context::dummy();
     let (mut release, cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);
     let (other_release, other_cap) = release::new(release_tracks(fake_recording_ids(1, ctx)), ctx);

@@ -84,7 +84,7 @@ fun templates_create_composition_and_recording() {
     assert_eq!(shares.value(), composition::share_supply_for_testing());
     assert!(currency.is_supply_fixed());
     assert_eq!(currency.total_supply(), option::some(composition::share_supply_for_testing()));
-    composition.publish(&composition_cap);
+    composition.share();
     assert_eq!(event::events_by_type<CompositionCreatedEvent<CompositionShare>>().length(), 1);
     test_scenario::return_shared(currency);
     transfer::public_transfer(composition_cap, SONGWRITER);
@@ -128,7 +128,7 @@ fun templates_create_composition_and_recording() {
     assert_eq!(event_composition_id, composition_id);
     assert_eq!(recording.composition_id(), composition_id);
     assert_eq!(shares.value(), recording::share_supply_for_testing());
-    recording.publish(&recording_cap);
+    recording.share();
     assert_eq!(event::events_by_type<RecordingCreatedEvent<RecordingShare>>().length(), 1);
     test_scenario::return_shared(composition);
     test_scenario::return_shared(currency);

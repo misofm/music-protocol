@@ -102,10 +102,7 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 
 // === Admin Functions ===
 
-public fun publish<RecordingShare>(
-    self: Recording<RecordingShare>,
-    _: &RecordingAdminCap<RecordingShare>,
-) {
+public fun share<RecordingShare>(self: Recording<RecordingShare>) {
     transfer::share_object(self);
 }
 

@@ -82,8 +82,7 @@ public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
 
 // === Admin Functions ===
 
-public fun publish(self: Release, cap: &ReleaseAdminCap) {
-    self.authorize(cap);
+public fun share(self: Release) {
     transfer::share_object(self);
 }
 

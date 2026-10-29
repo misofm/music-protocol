@@ -95,10 +95,7 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 
 // === Admin Functions ===
 
-public fun publish<CompositionShare>(
-    self: Composition<CompositionShare>,
-    _: &CompositionAdminCap<CompositionShare>,
-) {
+public fun share<CompositionShare>(self: Composition<CompositionShare>) {
     transfer::share_object(self);
 }
 

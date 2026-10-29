@@ -24,14 +24,14 @@ fun new_returns_recording_and_cap() {
 }
 
 #[test]
-fun publish_shares_the_recording() {
+fun shares_the_recording() {
     let mut scenario = test_scenario::begin(OWNER);
     let ctx = scenario.ctx();
     let (recording, cap) = recording::new_for_testing<RecordingShare>(
         test_helpers::fake_id(ctx),
         ctx,
     );
-    recording.publish(&cap);
+    recording.share();
     scenario.next_tx(OWNER);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
     test_scenario::return_shared(recording);
