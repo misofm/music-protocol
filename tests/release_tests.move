@@ -160,25 +160,24 @@ fun release_views_reflect_the_new_release() {
 // === Events ===
 
 #[test]
-fun release_published_event_at_max_tracks() {
+fun release_created_event_at_max_tracks() {
     let ctx = &mut tx_context::dummy();
     let recording_ids = fake_recording_ids((u8::max_value!() as u64), ctx);
     let (release, cap) = release::new(release_tracks(recording_ids), ctx);
     let release_id = object::id(&release);
-    assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
-    release.publish(&cap);
     let cap_id = object::id(&cap);
-    destroy(cap);
-    let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
+    let mut published_events = event::events_by_type<release::ReleaseCreatedEvent>();
     assert_eq!(published_events.length(), 1);
     let (
         event_release_id,
         event_release_admin_cap_id,
         event_recording_ids,
-    ) = release::release_published_event_fields_for_testing(&published_events.pop_back());
+    ) = release::release_created_fields_for_testing(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, cap_id);
     assert_eq!(event_recording_ids, recording_ids);
+    destroy(release);
+    destroy(cap);
 }
 
 // === Authorization ===

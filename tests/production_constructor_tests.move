@@ -14,11 +14,11 @@ use miso_music::{
         Self,
         Composition,
         CompositionAdminCap,
-        CompositionPublishedEvent,
+        CompositionCreatedEvent,
         CompositionRegistry,
     },
     composition_share as fixture,
-    recording::{Self, Recording, RecordingAdminCap, RecordingPublishedEvent, RecordingRegistry},
+    recording::{Self, Recording, RecordingAdminCap, RecordingCreatedEvent, RecordingRegistry},
     wrong_module
 };
 use recording_share::recording_share::{
@@ -73,17 +73,19 @@ fun templates_create_composition_and_recording() {
         composition::derive_address<CompositionShare>(&composition_registry),
     );
     test_scenario::return_shared(composition_registry);
+    let mut events = event::events_by_type<CompositionCreatedEvent<CompositionShare>>();
+    assert_eq!(events.length(), 1);
+    let (
+        event_composition_id,
+        event_composition_admin_cap_id,
+    ) = composition::composition_created_fields_for_testing(&events.pop_back());
+    assert_eq!(event_composition_id, composition_id);
+    assert_eq!(event_composition_admin_cap_id, object::id(&composition_cap));
     assert_eq!(shares.value(), composition::share_supply_for_testing());
     assert!(currency.is_supply_fixed());
     assert_eq!(currency.total_supply(), option::some(composition::share_supply_for_testing()));
     composition.publish(&composition_cap);
-    let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
-    let (
-        event_composition_id,
-        event_composition_admin_cap_id,
-    ) = composition::composition_published_event_fields_for_testing(&events.pop_back());
-    assert_eq!(event_composition_id, composition_id);
-    assert_eq!(event_composition_admin_cap_id, object::id(&composition_cap));
+    assert_eq!(event::events_by_type<CompositionCreatedEvent<CompositionShare>>().length(), 1);
     test_scenario::return_shared(currency);
     transfer::public_transfer(composition_cap, SONGWRITER);
     destroy(shares);
@@ -114,18 +116,20 @@ fun templates_create_composition_and_recording() {
         recording::derive_address<RecordingShare>(&recording_registry),
     );
     test_scenario::return_shared(recording_registry);
-    assert_eq!(recording.composition_id(), composition_id);
-    assert_eq!(shares.value(), recording::share_supply_for_testing());
-    recording.publish(&recording_cap);
-    let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
+    let mut events = event::events_by_type<RecordingCreatedEvent<RecordingShare>>();
+    assert_eq!(events.length(), 1);
     let (
         event_recording_id,
         event_recording_admin_cap_id,
         event_composition_id,
-    ) = recording::recording_published_event_fields_for_testing(&events.pop_back());
+    ) = recording::recording_created_fields_for_testing(&events.pop_back());
     assert_eq!(event_recording_id, recording_id);
     assert_eq!(event_recording_admin_cap_id, object::id(&recording_cap));
     assert_eq!(event_composition_id, composition_id);
+    assert_eq!(recording.composition_id(), composition_id);
+    assert_eq!(shares.value(), recording::share_supply_for_testing());
+    recording.publish(&recording_cap);
+    assert_eq!(event::events_by_type<RecordingCreatedEvent<RecordingShare>>().length(), 1);
     test_scenario::return_shared(composition);
     test_scenario::return_shared(currency);
     transfer::public_transfer(recording_cap, ARTIST);

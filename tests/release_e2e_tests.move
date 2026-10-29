@@ -33,39 +33,31 @@ fun anyone_releases_a_published_recording() {
         composition_id,
         scenario.ctx(),
     );
+    let recording_id = object::id(&recording);
     recording.publish(&recording_cap);
-    let mut recording_events = event::events_by_type<
-        recording::RecordingPublishedEvent<RecordingShare>,
-    >();
-    let (
-        event_recording_id,
-        _,
-        event_composition_id,
-    ) = recording::recording_published_event_fields_for_testing(&recording_events.pop_back());
     test_scenario::return_shared(composition);
     scenario.next_tx(CURATOR);
     let recording = scenario.take_shared<Recording<RecordingShare>>();
-    let recording_id = object::id(&recording);
+    assert_eq!(object::id(&recording), recording_id);
+    assert_eq!(recording.composition_id(), composition_id);
     let (release, release_cap) = release::new(
         vector[release::new_release_track(&recording)],
         scenario.ctx(),
     );
     let release_id = object::id(&release);
     test_scenario::return_shared(recording);
-    assert_eq!(event::events_by_type<release::ReleasePublishedEvent>().length(), 0);
-    release.publish(&release_cap);
-    let mut published_events = event::events_by_type<release::ReleasePublishedEvent>();
+    let mut published_events = event::events_by_type<release::ReleaseCreatedEvent>();
     assert_eq!(published_events.length(), 1);
     let (
         event_release_id,
         event_release_admin_cap_id,
         event_recording_ids,
-    ) = release::release_published_event_fields_for_testing(&published_events.pop_back());
+    ) = release::release_created_fields_for_testing(&published_events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&release_cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
-    assert_eq!(event_recording_ids, vector[event_recording_id]);
-    assert_eq!(event_composition_id, composition_id);
+    release.publish(&release_cap);
+    assert_eq!(event::events_by_type<release::ReleaseCreatedEvent>().length(), 1);
     destroy(release_cap);
     scenario.next_tx(READER);
     let release = scenario.take_shared<Release>();

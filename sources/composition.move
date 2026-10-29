@@ -41,7 +41,7 @@ public struct CompositionAdminCapKey() has copy, drop, store;
 
 // === Events ===
 
-public struct CompositionPublishedEvent<phantom CompositionShare> has copy, drop {
+public struct CompositionCreatedEvent<phantom CompositionShare> has copy, drop {
     composition_id: ID,
     composition_admin_cap_id: ID,
 }
@@ -76,6 +76,10 @@ public fun new<CompositionShare: key>(
     let (composition, cap) = new_internal!<CompositionShare>(
         claim(&mut registry.id, CompositionKey<CompositionShare>()),
     );
+    emit(CompositionCreatedEvent<CompositionShare> {
+        composition_id: object::id(&composition),
+        composition_admin_cap_id: object::id(&cap),
+    });
     (composition, cap, shares)
 }
 
@@ -93,14 +97,9 @@ public fun uid<CompositionShare>(self: &Composition<CompositionShare>): &UID {
 
 public fun publish<CompositionShare>(
     self: Composition<CompositionShare>,
-    cap: &CompositionAdminCap<CompositionShare>,
+    _: &CompositionAdminCap<CompositionShare>,
 ) {
-    let composition_id = object::id(&self);
     transfer::share_object(self);
-    emit(CompositionPublishedEvent<CompositionShare> {
-        composition_id,
-        composition_admin_cap_id: object::id(cap),
-    });
 }
 
 public fun uid_mut<CompositionShare>(
@@ -145,9 +144,9 @@ public fun new_composition_registry_for_testing(ctx: &mut TxContext): Compositio
 public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
-public fun composition_published_event_fields_for_testing<CompositionShare>(
-    event: &CompositionPublishedEvent<CompositionShare>,
+public fun composition_created_fields_for_testing<CompositionShare>(
+    event: &CompositionCreatedEvent<CompositionShare>,
 ): (ID, ID) {
-    let CompositionPublishedEvent { composition_id, composition_admin_cap_id } = event;
+    let CompositionCreatedEvent { composition_id, composition_admin_cap_id } = event;
     (*composition_id, *composition_admin_cap_id)
 }

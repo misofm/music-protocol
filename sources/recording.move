@@ -43,7 +43,7 @@ public struct RecordingAdminCapKey() has copy, drop, store;
 
 // === Events ===
 
-public struct RecordingPublishedEvent<phantom RecordingShare> has copy, drop {
+public struct RecordingCreatedEvent<phantom RecordingShare> has copy, drop {
     recording_id: ID,
     recording_admin_cap_id: ID,
     composition_id: ID,
@@ -73,10 +73,16 @@ public fun new<RecordingShare: key, CompositionShare>(
         b"".to_string(),
         SHARE_SUPPLY,
     );
+    let composition_id = object::id(composition);
     let (recording, cap) = new_internal!<RecordingShare>(
         claim(&mut registry.id, RecordingKey<RecordingShare>()),
-        object::id(composition),
+        composition_id,
     );
+    emit(RecordingCreatedEvent<RecordingShare> {
+        recording_id: object::id(&recording),
+        recording_admin_cap_id: object::id(&cap),
+        composition_id,
+    });
     (recording, cap, shares)
 }
 
@@ -98,16 +104,9 @@ public fun uid<RecordingShare>(self: &Recording<RecordingShare>): &UID {
 
 public fun publish<RecordingShare>(
     self: Recording<RecordingShare>,
-    cap: &RecordingAdminCap<RecordingShare>,
+    _: &RecordingAdminCap<RecordingShare>,
 ) {
-    let recording_id = object::id(&self);
-    let composition_id = self.composition_id;
     transfer::share_object(self);
-    emit(RecordingPublishedEvent<RecordingShare> {
-        recording_id,
-        recording_admin_cap_id: object::id(cap),
-        composition_id,
-    });
 }
 
 public fun uid_mut<RecordingShare>(
@@ -157,9 +156,9 @@ public fun new_recording_registry_for_testing(ctx: &mut TxContext): RecordingReg
 public fun share_supply_for_testing(): u64 { SHARE_SUPPLY }
 
 #[test_only]
-public fun recording_published_event_fields_for_testing<RecordingShare>(
-    event: &RecordingPublishedEvent<RecordingShare>,
+public fun recording_created_fields_for_testing<RecordingShare>(
+    event: &RecordingCreatedEvent<RecordingShare>,
 ): (ID, ID, ID) {
-    let RecordingPublishedEvent { recording_id, recording_admin_cap_id, composition_id } = event;
+    let RecordingCreatedEvent { recording_id, recording_admin_cap_id, composition_id } = event;
     (*recording_id, *recording_admin_cap_id, *composition_id)
 }

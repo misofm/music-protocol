@@ -34,7 +34,7 @@ public struct ReleaseAdminCapKey() has copy, drop, store;
 
 // === Events ===
 
-public struct ReleasePublishedEvent has copy, drop {
+public struct ReleaseCreatedEvent has copy, drop {
     release_id: ID,
     release_admin_cap_id: ID,
     recording_ids: vector<ID>,
@@ -53,7 +53,13 @@ public fun new(tracks: vector<ReleaseTrack>, ctx: &mut TxContext): (Release, Rel
     let mut keys = recording_ids.map_ref!(|recording_id| recording_id.to_address().to_u256());
     keys.merge_sort_by!(|a, b| *a <= *b);
     assert!(keys.is_sorted_by!(|a, b| *a < *b), EDuplicateRecording);
-    new_internal!(object::new(ctx), recording_ids)
+    let (release, cap) = new_internal!(object::new(ctx), recording_ids);
+    emit(ReleaseCreatedEvent {
+        release_id: object::id(&release),
+        release_admin_cap_id: object::id(&cap),
+        recording_ids: release.recording_ids,
+    });
+    (release, cap)
 }
 
 public fun new_release_track<RecordingShare>(recording: &Recording<RecordingShare>): ReleaseTrack {
@@ -78,14 +84,7 @@ public fun release_admin_cap_release_id(cap: &ReleaseAdminCap): ID {
 
 public fun publish(self: Release, cap: &ReleaseAdminCap) {
     self.authorize(cap);
-    let release_id = object::id(&self);
-    let recording_ids = self.recording_ids;
     transfer::share_object(self);
-    emit(ReleasePublishedEvent {
-        release_id,
-        release_admin_cap_id: object::id(cap),
-        recording_ids,
-    });
 }
 
 public fun uid_mut(self: &mut Release, cap: &ReleaseAdminCap): &mut UID {
@@ -124,9 +123,7 @@ public fun new_release_track_for_testing(recording_id: ID): ReleaseTrack {
 }
 
 #[test_only]
-public fun release_published_event_fields_for_testing(
-    event: &ReleasePublishedEvent,
-): (ID, ID, vector<ID>) {
-    let ReleasePublishedEvent { release_id, release_admin_cap_id, recording_ids } = event;
+public fun release_created_fields_for_testing(event: &ReleaseCreatedEvent): (ID, ID, vector<ID>) {
+    let ReleaseCreatedEvent { release_id, release_admin_cap_id, recording_ids } = event;
     (*release_id, *release_admin_cap_id, *recording_ids)
 }

@@ -5,9 +5,9 @@
 module miso_music::post_publish_tests;
 
 use miso_music::{
-    composition::{Self, Composition, CompositionPublishedEvent},
-    recording::{Self, Recording, RecordingPublishedEvent},
-    release::{Self, Release, ReleasePublishedEvent},
+    composition::{Self, Composition},
+    recording::{Self, Recording},
+    release::{Self, Release, ReleaseCreatedEvent},
     test_helpers::{Self, CompositionShare, RecordingShare}
 };
 use std::unit_test::{assert_eq, destroy};
@@ -21,16 +21,7 @@ fun publish_composition(
 ): composition::CompositionAdminCap<CompositionShare> {
     let ctx = scenario.ctx();
     let (composition, cap) = composition::new_for_testing<CompositionShare>(ctx);
-    let composition_id = object::id(&composition);
     composition.publish(&cap);
-    let mut events = event::events_by_type<CompositionPublishedEvent<CompositionShare>>();
-    assert_eq!(events.length(), 1);
-    let (
-        event_composition_id,
-        event_composition_admin_cap_id,
-    ) = composition::composition_published_event_fields_for_testing(&events.pop_back());
-    assert_eq!(event_composition_id, composition_id);
-    assert_eq!(event_composition_admin_cap_id, object::id(&cap));
     cap
 }
 
@@ -43,34 +34,26 @@ fun publish_recording(
         composition_id,
         ctx,
     );
-    let recording_id = object::id(&recording);
     recording.publish(&cap);
-    let mut events = event::events_by_type<RecordingPublishedEvent<RecordingShare>>();
-    assert_eq!(events.length(), 1);
-    let (
-        event_recording_id,
-        event_recording_admin_cap_id,
-        event_composition_id,
-    ) = recording::recording_published_event_fields_for_testing(&events.pop_back());
-    assert_eq!(event_recording_id, recording_id);
-    assert_eq!(event_recording_admin_cap_id, object::id(&cap));
-    assert_eq!(event_composition_id, composition_id);
     cap
 }
 
 fun publish_release(scenario: &mut test_scenario::Scenario): (release::ReleaseAdminCap, ID) {
     let ctx = scenario.ctx();
     let recording_id = test_helpers::fake_id(ctx);
-    let (release, cap) = release::new_for_testing(vector[recording_id], ctx);
+    let (release, cap) = release::new(
+        vector[release::new_release_track_for_testing(recording_id)],
+        ctx,
+    );
     let release_id = object::id(&release);
     release.publish(&cap);
-    let mut events = event::events_by_type<ReleasePublishedEvent>();
-    assert!(!events.is_empty());
+    let mut events = event::events_by_type<ReleaseCreatedEvent>();
+    assert_eq!(events.length(), 1);
     let (
         event_release_id,
         event_release_admin_cap_id,
         event_recording_ids,
-    ) = release::release_published_event_fields_for_testing(&events.pop_back());
+    ) = release::release_created_fields_for_testing(&events.pop_back());
     assert_eq!(event_release_id, release_id);
     assert_eq!(event_release_admin_cap_id, object::id(&cap));
     assert_eq!(event_recording_ids, vector[recording_id]);
@@ -111,18 +94,14 @@ fun recording_uid_mut_works_after_publish() {
 // === Release ===
 
 #[test]
-fun release_publish_twice_emits_again() {
+fun release_publish_twice_emits_nothing() {
     let mut scenario = test_scenario::begin(OWNER);
     let (cap, release_id) = publish_release(&mut scenario);
     scenario.next_tx(OWNER);
     let release = scenario.take_shared<Release>();
     release.publish(&cap);
-    let mut events = event::events_by_type<ReleasePublishedEvent>();
-    assert_eq!(events.length(), 1);
-    let (event_release_id, _, _) = release::release_published_event_fields_for_testing(
-        &events.pop_back(),
-    );
-    assert_eq!(event_release_id, release_id);
+    assert_eq!(event::events_by_type<ReleaseCreatedEvent>().length(), 0);
+    assert_eq!(release_id, cap.release_id());
     destroy(cap);
     scenario.end();
 }
