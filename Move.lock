@@ -61,7 +61,7 @@ deps = { std = "MoveStdlib", sui = "Sui" }
 [pinned.testnet.miso_music]
 source = { root = true }
 use_environment = "testnet"
-manifest_digest = "6D7AD281495E0E34B82402BCE42D479CC7534B6C474FC2F52B82425C451A92E1"
+manifest_digest = "E29BD85D011B01538AA38775B231517EF693616CC6F8C6E6017EF5DD04DFE5F7"
 deps = { composition_share = "composition_share", recording_share = "recording_share", share = "share", std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.recording_share]
